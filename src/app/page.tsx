@@ -1,34 +1,71 @@
 'use client';
 
-import { useState } from 'react';
-import { Container } from '@mantine/core';
+import { useCallback, useState, useMemo } from 'react';
+import { Container, Checkbox, Group, MultiSelect } from '@mantine/core';
 import NetworkGraph from '../components/NetworkGraph';
 import NodeDetail from '../components/NodeDetail';
 import EdgeDetail from '../components/EdgeDetail';
 import { nodes as nodeData } from '../data/nodes';
 import { edges as edgeData } from '../data/edges';
 import { ExtendedNode, ExtendedEdge } from '../types';
-import { Checkbox, Group } from '@mantine/core';
 
 export default function Home() {
   const [selectedNode, setSelectedNode] = useState<ExtendedNode | null>(null);
   const [selectedEdge, setSelectedEdge] = useState<ExtendedEdge | null>(null);
   const [activeRelations, setActiveRelations] = useState<string[]>([
-  'background',
-  'method',
-  'gap',
-  'future',
-  'objective',
-]);
+    'background',
+    'method',
+    'gap',
+    'future',
+    'objective',
+  ]);
+  const [activeArticles, setActiveArticels] = useState<string[]>([]);
 
-  const filteredEdges = edgeData.filter((edge) => {
-    if (activeRelations.length === 0) return true;
-    return activeRelations.includes(edge.relation || '');
-  });
+  const filteredNodes = useMemo(() => {
+      return nodeData.filter((node) => {
+      if (activeArticles.length === 0) return true;
+      return activeArticles.includes(node.label || '');
+    })
+  }, [activeArticles]);
+
+  const filteredEdges = useMemo(() => {    
+      return edgeData.filter((edge) => {
+      if (activeRelations.length === 0) return true;
+      return activeRelations.includes(edge.relation || '');
+    });
+  }, [activeRelations]);
+
+  const handleNodeClick = useCallback((node: ExtendedNode) => {
+    setSelectedEdge(null);
+    setSelectedNode(node);
+  }, []);
+
+  const handleEdgeClick = useCallback ((edge: ExtendedEdge) => {
+    setSelectedNode(null);
+    setSelectedEdge(edge);
+  }, []);
 
   return (
     <Container size="xl" py="md">
       <h1>Peta Konsep - Visualisasi Artikel</h1>
+
+      <MultiSelect
+        label="Tampilkan Artikel"
+        placeholder="Pilih artikel"
+        value={activeArticles}
+        onChange={(e) => {
+          setActiveArticels(e);
+          setSelectedNode(null);
+        }}
+        data={nodeData.map((node) => ({
+          value: node.label || '',
+          label: node.title || node.label || '',
+        }))}
+        searchable
+        clearable
+        mt="md"
+      />
+
       <Group mt="md">
         <Checkbox.Group
           value={activeRelations}
@@ -45,16 +82,10 @@ export default function Home() {
         </Checkbox.Group>
       </Group>
       <NetworkGraph
-        nodes={nodeData}
+        nodes={filteredNodes}
         edges={filteredEdges}
-        onNodeClick={(node) => {
-          setSelectedEdge(null);
-          setSelectedNode(node);
-        }}
-        onEdgeClick={(edge) => {
-          setSelectedNode(null);
-          setSelectedEdge(edge);
-        }}
+        onNodeClick={handleNodeClick}
+        onEdgeClick={handleEdgeClick}
       />
       <NodeDetail node={selectedNode} onClose={() => setSelectedNode(null)} />
       <EdgeDetail edge={selectedEdge} onClose={() => setSelectedEdge(null)} />
