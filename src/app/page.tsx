@@ -66,7 +66,7 @@ export default function Home() {
         mt="md"
       />
 
-      <Group mt="md">
+      <Group mt="md" style={{ padding: '0.5rem', border: '1px solid #ccc', borderRadius: '4px', marginBottom: '1rem' }}>
         <Checkbox.Group
           value={activeRelations}
           onChange={setActiveRelations}
@@ -80,15 +80,15 @@ export default function Home() {
             <Checkbox value="objective" label="Objective" />
           </Group>
         </Checkbox.Group>
+        <NetworkGraph
+          nodes={filteredNodes}
+          edges={filteredEdges}
+          onNodeClick={handleNodeClick}
+          onEdgeClick={handleEdgeClick}
+        />
+        <NodeDetail node={selectedNode} onClose={() => setSelectedNode(null)} />
+        <EdgeDetail edge={selectedEdge} onClose={() => setSelectedEdge(null)} />
       </Group>
-      <NetworkGraph
-        nodes={filteredNodes}
-        edges={filteredEdges}
-        onNodeClick={handleNodeClick}
-        onEdgeClick={handleEdgeClick}
-      />
-      <NodeDetail node={selectedNode} onClose={() => setSelectedNode(null)} />
-      <EdgeDetail edge={selectedEdge} onClose={() => setSelectedEdge(null)} />
     </Container>
   );
 }
