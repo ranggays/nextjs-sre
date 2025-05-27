@@ -12,8 +12,8 @@ import {
   ActionIcon,
   Stack,
 } from '@mantine/core';
-import { IconX } from '@tabler/icons-react';
-import { useEffect, useState } from 'react';
+import { IconX, IconUpload } from '@tabler/icons-react';
+import { useEffect, useState, useRef } from 'react';
 import { ExtendedNode, ExtendedEdge } from '../types';
 
 interface ChatPanelProps {
@@ -47,6 +47,12 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
   const removeContextNode = (label: string) => {
     setContextNodes((prev) => prev.filter((n) => n.label !== label));
   };
+
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleUploadFile = () => {
+    fileInputRef.current?.click();
+  }
 
   return (
     <Box style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -87,14 +93,20 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
 
       {/* Input */}
       <Group mt="xs" align="flex-end">
+        
         <Textarea
           placeholder="Ketik pertanyaan..."
           autosize
-          minRows={2}
+          minRows={3}
+          pr={50}
           value={input}
           onChange={(e) => setInput(e.currentTarget.value)}
           style={{ flex: 1 }}
         />
+        <ActionIcon variant='default' size='lg' onClick={handleUploadFile}>
+          <IconUpload size={20} />
+          <input ref={fileInputRef} type="file" style={{ display: 'none' }} />
+        </ActionIcon>
         <Button onClick={handleSend}>Kirim</Button>
       </Group>
     </Box>
