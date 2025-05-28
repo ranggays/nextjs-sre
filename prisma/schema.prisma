@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -15,34 +14,47 @@ datasource db {
 }
 
 model Article {
-  id    String  @id 
-  fileName  String
+  id    Int  @id  @default(autoincrement()) 
+  title  String
   filePath  String
-  status    String
-  createdAt DateTime
-
-  nodes     Node[]
+  nodes    Node[]
+  edges    Edge[]
+  createdAt DateTime  @default(now())
+  updateAt  DateTime  @updatedAt
 }
 
 model Node {
-  id      String @id
-  title   String
-  content String
+  id      Int @id @default(autoincrement())
+  label   String
+  title   String? // nullable
+  att_goal  String? // nullable
+  att_method  String? // nullable
+  att_background  String? // nullable
+  att_future  String? // nullable
+  att_gaps  String? // nullable
+  att_url  String? // nullable
   type    String
-  articleId String
-  article Article @relation(fields: [articleId], references: [id])
+  content String
 
-  sourceEdges Edge[]  @relation("SourceNode")
-  targetEdges Edge[]  @relation("TargetNode")
+  article Article @relation(fields: [articleId], references: [id])
+  articleId Int
+
+  fromEdges Edge[]  @relation("EdgeFrom")
+  toEdges Edge[]  @relation("EdgeTo")
 }
 
 model Edge {
-  id      String  @id
-  sourceId  String
-  targetId  String
-  relation  String
+  id      Int  @id  @default(autoincrement())
+  fromId    Int 
+  toId      Int
+  relation  String?
+  label     String?
+  color     String?
 
-  sourceNode  Node  @relation("SourceNode", fields: [sourceId], references: [id])
-  targetNode  Node  @relation("TargetNode", fields: [targetId], references: [id])
+  from      Node  @relation("EdgeFrom" ,fields: [fromId], references: [id])
+  to      Node  @relation("EdgeTo", fields: [toId], references: [id])
+
+  article   Article @relation(fields: [articleId], references: [id])
+  articleId  Int
 }
 

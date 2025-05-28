@@ -15,6 +15,7 @@ import {
 import { IconX, IconUpload } from '@tabler/icons-react';
 import { useEffect, useState, useRef } from 'react';
 import { ExtendedNode, ExtendedEdge } from '../types';
+import { notifications } from '@mantine/notifications';
 
 interface ChatPanelProps {
   selectedNode: ExtendedNode | null;
@@ -25,6 +26,7 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
   const [messages, setMessages] = useState<string[]>([]);
   const [input, setInput] = useState('');
   const [contextNodes, setContextNodes] = useState<ExtendedNode[]>([]);
+  const [uploading, setUpLoading] = useState(false);
 
   useEffect(() => {
   if (selectedNode) {
@@ -52,6 +54,66 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
 
   const handleUploadFile = () => {
     fileInputRef.current?.click();
+  };
+
+  const onFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.pdf')){
+      notifications.show({
+        title: 'Format tidak didukung',
+        message: 'Mohon upload file PDF',
+        color: 'yellow',
+      });
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('title', file.name);
+
+    setUpLoading(true);
+    try {
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const contentType = res.headers.get("content-type");
+      if (!res.ok){
+        const text = await res.text();
+        throw new Error(`Upload failed: ${text}`);
+      };
+
+      let data: any = {};
+      if (contentType?.includes("application/json")){
+        data = await res.json();
+        console.log('File uploaded:', data);
+      }else{
+        const text = await res.text();
+        console.log('Unexpected response:', text);
+      }
+
+      notifications.show({
+        title: 'Berhasil',
+        message: `File "${file.name}" berhasil diunggah dan diproses`,
+        color: 'green',
+      });
+
+      console.log('File Uploaded:', data);
+
+    } catch (error: any) {
+      notifications.show({
+        title: 'Upload Gagal',
+        message: error.message || 'Terjadi Kesalahan saat upload',
+        color: 'red',
+      });
+      console.error('File upload error:', error);
+    } finally{
+      setUpLoading(false);
+      e.target.value = ''
+    }
   }
 
   return (
@@ -103,9 +165,9 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
           onChange={(e) => setInput(e.currentTarget.value)}
           style={{ flex: 1 }}
         />
-        <ActionIcon variant='default' size='lg' onClick={handleUploadFile}>
+        <ActionIcon variant={uploading ? 'filled' : 'default'} loading={uploading} disabled={uploading} size='lg' onClick={handleUploadFile}>
           <IconUpload size={20} />
-          <input ref={fileInputRef} type="file" style={{ display: 'none' }} />
+          <input ref={fileInputRef} type="file" style={{ display: 'none' }} onClick={handleUploadFile} onChange={onFileChange} accept="application/pdf"/>
         </ActionIcon>
         <Button onClick={handleSend}>Kirim</Button>
       </Group>

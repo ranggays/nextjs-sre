@@ -1,0 +1,126 @@
+// app/api/upload/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { createWriteStream, mkdirSync, existsSync } from "fs";
+import path from "path";
+import Busboy from "busboy";
+import { prisma } from "@/lib/prisma";
+import { readPDFContent } from "@/utils/pdfReader";
+import { analyzeWithAI } from "@/utils/analyzeWithAI";
+import { Readable } from "stream";
+
+export const dynamic = "force-dynamic";
+
+export async function POST(req: NextRequest): Promise<NextResponse> {
+  return new Promise((resolve, reject) => {
+    const uploadsDir = path.join(process.cwd(), "public", "uploads");
+    if (!existsSync(uploadsDir)) mkdirSync(uploadsDir, { recursive: true });
+
+    const busboy = Busboy({ headers: Object.fromEntries(req.headers) });
+    let title = "Untitled";
+    let savedFilePath = "";
+    const fileWritePromises: Promise<void>[] = [];
+
+    busboy.on("file", (fieldname, file, filename) => {
+      const safeFileName = typeof filename === "string" ? filename : "uploaded.pdf";
+      const fullPath = path.join(uploadsDir, safeFileName);
+      savedFilePath = `/uploads/${safeFileName}`;
+
+      const writeStream = createWriteStream(fullPath);
+      file.pipe(writeStream);
+
+      fileWritePromises.push(
+        new Promise((res, rej) => {
+          writeStream.on("finish", () => {
+            console.log(`✅ File written to ${fullPath}`);
+            res();
+          });
+          writeStream.on("error", rej);
+        })
+      );
+    });
+
+    busboy.on("field", (fieldname, val) => {
+      if (fieldname === "title") {
+        title = val;
+      }
+    });
+
+    busboy.on("finish", async () => {
+      try {
+        await Promise.all(fileWritePromises);
+
+        // Baca isi PDF
+        const fullPath = path.join(process.cwd(), "public", savedFilePath);
+        const extractedText = await readPDFContent(fullPath);
+
+        // Analisis dengan AI => object dengan properti att_*
+        const aiSections = await analyzeWithAI(extractedText);
+
+        // Simpan artikel dulu
+        const article = await prisma.article.create({
+          data: {
+            title,
+            filePath: savedFilePath,
+            createdAt: new Date(),
+          },
+        });
+
+        const firstNode = aiSections[0] || {};
+        // Simpan node terkait article
+        const node = await prisma.node.create({
+          data: {
+            label: "ARTIKEL-01", // Bisa diganti sesuai kebutuhan
+            title,
+            att_goal: firstNode.att_goal || null,
+            att_method: firstNode.att_method || null,
+            att_background: firstNode.att_background || null,
+            att_future: firstNode.att_future || null,
+            att_gaps: firstNode.att_gaps || null,
+            att_url: savedFilePath,
+            type: "article",
+            content: extractedText.substring(0, 2000), // contoh potongan konten
+            articleId: article.id,
+          },
+        });
+
+        // Panggil API generate edges (external route)
+        const edgeRes = await fetch(`${process.env.BASE_URL}/api/generate-edges`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ articleIds: [article.id] }),
+        });
+
+        if (!edgeRes.ok) throw new Error("Failed to generate edges");
+        const edgeData = await edgeRes.json();
+
+        resolve(
+          NextResponse.json({
+            message: "File uploaded and processed successfully",
+            article,
+            node,
+            edges: edgeData.edges,
+          })
+        );
+      } catch (err) {
+        console.error("Processing error:", err);
+        reject(
+          NextResponse.json(
+            {
+              message: "Processing failed",
+              error: err instanceof Error ? err.message : "Unknown error",
+            },
+            { status: 500 }
+          )
+        );
+      }
+    });
+
+    if (!req.body) {
+      return resolve(NextResponse.json({ message: "No file data" }, { status: 400 }));
+    }
+
+    // Convert Web ReadableStream to Node.js Readable stream
+    const stream = Readable.fromWeb(req.body as any);
+    stream.pipe(busboy);
+  });
+}

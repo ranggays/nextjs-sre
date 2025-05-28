@@ -436,6 +436,7 @@ export default function Home() {
 
                 <Box style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
                   <ChatPanel selectedNode={selectedNode} selectedEdge={selectedEdge} />
+                  
                 </Box>
               </Card>
             </Grid.Col>
