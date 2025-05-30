@@ -1,7 +1,7 @@
 // src/app/page.tsx
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Box,
   Burger,
@@ -49,13 +49,51 @@ import {
   IconSun,
   IconMoon
 } from '@tabler/icons-react';
-import { nodes as nodeData } from '../../data/nodes';
-import { edges as edgeData } from '../../data/edges';
+// import { nodes as nodeData } from '../../data/nodes';
+// import { edges as edgeData } from '../../data/edges';
 import { ExtendedEdge, ExtendedNode } from '../../types';
 import NetworkGraph from '../../components/NetworkGraph';
 import ChatPanel from '../../components/ChatPanel';
 import NodeDetail from '../../components/NodeDetail';
 import EdgeDetail from '../../components/EdgeDetail';
+
+  const relationMapping = {
+    'background': 'same_background',
+    'method': 'extended_method',
+    'goal': 'shares_goal',
+    'future': 'follows_future_work',
+    'gap': 'addresses_same_gap',
+  }
+
+  const relationColors = {
+    'background': 'blue',
+    'method': 'green',
+    'gap': 'red',
+    'future': 'violet',
+    'goal': 'orange'
+  };
+
+  function getRelationDisplayName(relation: string): string {
+    const displayNames = {
+      'background': 'Latar Belakang',
+      'method': 'Metodologi',
+      'goal': 'Tujuan',
+      'future': 'Arahan Masa Depan',
+      'gap': 'Gap Penelitian'
+    };
+    return displayNames[relation as keyof typeof displayNames] || relation.charAt(0).toUpperCase() + relation.slice(1);
+  }
+
+  function getRelationColor(relation: string): string {
+  const reverseMapping: Record<string, string> = {};
+  Object.entries(relationMapping).forEach(([display, api]) => {
+    reverseMapping[api] = display;
+  });
+  
+  const displayRelation = reverseMapping[relation];
+  return relationColors[displayRelation as keyof typeof relationColors] || 'gray';
+}
+
 
 export default function Home() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
@@ -72,23 +110,126 @@ export default function Home() {
     'method',
     'gap',
     'future',
-    'objective',
+    'goal',
   ]);
   const [activeArticles, setActiveArticles] = useState<string[]>([]);
+  const [nodes, setNodes] = useState<ExtendedNode[]>([]);
+  const [edges, setEdges] = useState<ExtendedEdge[]>([]);
 
   const filteredNodes = useMemo(() => {
-    return nodeData.filter((node) => {
-      if (activeArticles.length === 0) return true;
-      return activeArticles.includes(node.label || '');
-    });
-  }, [activeArticles]);
+    if (activeArticles.length === 0) return nodes;
+    return nodes.filter((node) => activeArticles.includes(String(node.id)));
+  }, [activeArticles, nodes]);
 
   const filteredEdges = useMemo(() => {
-    return edgeData.filter((edge) => {
-      if (activeRelations.length === 0) return true;
-      return activeRelations.includes(edge.relation || '');
+    const nodeIds = new Set(filteredNodes.map(n => n.id));
+    
+    // Convert display relation names to API relation names
+    const mappedActiveRelations = activeRelations.map(relation => 
+      relationMapping[relation as keyof typeof relationMapping]
+    ).filter(Boolean); // Remove undefined values
+    
+    console.log("Active Relations (display):", activeRelations);
+    console.log("Mapped Relations (API):", mappedActiveRelations);
+    console.log("Available Edge Relations:", [...new Set(edges.map(e => e.relation))]);
+    
+    return edges.filter((edge) => {
+      const matchRelation = activeRelations.length > 0 && mappedActiveRelations.includes(edge.relation || '');
+      const matchNodes = nodeIds.has(edge.from) && nodeIds.has(edge.to);
+      
+      console.log(`Edge ${edge.from}->${edge.to}:`, {
+        relation: edge.relation,
+        matchRelation,
+        matchNodes,
+        included: matchRelation && matchNodes
+      });
+      
+      return matchRelation && matchNodes;
     });
-  }, [activeRelations]);
+  }, [activeRelations, edges, filteredNodes]);
+
+
+  const fetchData = async () => {
+    try {
+          const nodesRes = await fetch('/api/nodes');
+          const edgesRes = await fetch('/api/edges');
+
+          if (!nodesRes.ok || !edgesRes.ok){
+            throw new Error('Failed to fetch data');
+          }
+
+          const nodesData = await nodesRes.json();
+          const edgesData = await edgesRes.json();
+
+          console.log("Raw Nodes Data",nodesData);
+          console.log("Raw Edges Data",edgesData);
+
+          const mappedNodes = nodesData.map((node: any) =>({
+            ...node,
+            label: node.title,
+          }))
+
+          setNodes(mappedNodes);
+
+          const mappedEdges = edgesData.map((edge: any) => ({
+            from: edge.fromId,
+            to: edge.toId,
+            label: edge.label,
+            relation: edge.relation || 'unknown',
+            arrows: 'to, from',
+            color: { color: getRelationColor(edge.relation) || 'gray' },
+            font: { color: 'black', background: 'white' },
+          }));
+
+          console.log("Mapped Edges:" ,mappedEdges);
+          console.log("Edge Relations Found:" ,[...new Set(mappedEdges.map((e: any) => e.relation))]);
+          console.log("Expected Relations:" ,Object.values(relationMapping));
+          setEdges(mappedEdges);
+    } catch (error) {
+      console.error("Error Fetching Data:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+
+
+  useEffect(() => {
+    console.log("=== COMPREHENSIVE DEBUG INFO ===");
+    console.log("1. State Values:");
+    console.log("   - Active Articles:", activeArticles);
+    console.log("   - Active Relations (UI):", activeRelations);
+    
+    console.log("2. Mapping Info:");
+    console.log("   - Relation Mapping:", relationMapping);
+    console.log("   - Mapped Active Relations:", activeRelations.map(r => relationMapping[r as keyof typeof relationMapping]));
+    
+    console.log("3. Data Info:");
+    console.log("   - Total Nodes:", nodes.length);
+    console.log("   - Total Edges:", edges.length);
+    console.log("   - Available Edge Relations:", [...new Set(edges.map(e => e.relation))]);
+    console.log("   - Expected Relations:", Object.values(relationMapping));
+    
+    console.log("4. Filtered Results:");
+    console.log("   - Filtered Nodes Count:", filteredNodes.length);
+    console.log("   - Filtered Edges Count:", filteredEdges.length);
+    console.log("   - Node IDs in Filter:", filteredNodes.map(n => n.id));
+    console.log("   - Edge Details:", filteredEdges.map(e => ({
+      from: e.from,
+      to: e.to,
+      relation: e.relation,
+      label: e.label
+    })));
+    
+    if (filteredEdges.length === 0 && edges.length > 0) {
+      console.warn("🚨 No edges showing! Possible issues:");
+      console.warn("   - Check if node IDs match edge from/to values");
+      console.warn("   - Check if relation mapping is correct");
+      console.warn("   - Check if activeRelations contains valid values");
+    }
+  }, [activeArticles, activeRelations, filteredNodes, filteredEdges, edges, nodes]);
 
   const handleNodeClick = useCallback((node: ExtendedNode) => {
     setSelectedEdge(null);
@@ -101,14 +242,6 @@ export default function Home() {
     setSelectedEdge(edge);
     setDetailModalEdge(edge);
   }, []);
-
-  const relationColors = {
-    background: 'blue',
-    method: 'green',
-    gap: 'red',
-    future: 'violet',
-    objective: 'orange'
-  };
 
   const chatHistory = [
     { id: 1, title: 'Analisis Machine Learning', timestamp: '2 jam lalu', active: false },
@@ -327,8 +460,8 @@ export default function Home() {
                       setActiveArticles(e);
                       setSelectedNode(null);
                     }}
-                    data={nodeData.map((node) => ({
-                      value: node.label || '',
+                    data={nodes.map((node) => ({
+                      value: String(node.id) || '',
                       label: node.title || node.label || '',
                     }))}
                     searchable
@@ -349,7 +482,7 @@ export default function Home() {
                           label={
                             <Group gap="xs">
                               <Badge variant="dot" color={color} size="sm">
-                                {relation.charAt(0).toUpperCase() + relation.slice(1)}
+                                {getRelationDisplayName(relation)}
                               </Badge>
                             </Group>
                           }
