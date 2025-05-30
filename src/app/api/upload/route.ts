@@ -22,8 +22,10 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     busboy.on("file", (fieldname, file, filename) => {
       const safeFileName = typeof filename === "string" ? filename : "uploaded.pdf";
-      const fullPath = path.join(uploadsDir, safeFileName);
-      savedFilePath = `/uploads/${safeFileName}`;
+      const safeOriginalName = safeFileName.replace(/[^\w.\-]/g, "_");
+      const uniqueFileName = `${Date.now()}-${safeOriginalName}`;
+      const fullPath = path.join(uploadsDir, uniqueFileName);
+      savedFilePath = `/uploads/${uniqueFileName}`;
 
       const writeStream = createWriteStream(fullPath);
       file.pipe(writeStream);
