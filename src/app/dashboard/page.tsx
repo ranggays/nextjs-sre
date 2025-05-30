@@ -151,7 +151,7 @@ export default function Home() {
                     variant="gradient"
                     gradient={{ from: 'blue', to: 'cyan', deg: 45 }}
                   >
-                    SreRealityIdeas
+                    mySRE
                   </Text>
                   <Text size="xs" c="dimmed">Knowledge Visualization Platform</Text>
                 </Box>
