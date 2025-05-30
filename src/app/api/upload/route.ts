@@ -5,7 +5,7 @@ import path from "path";
 import Busboy from "busboy";
 import { prisma } from "@/lib/prisma";
 import { readPDFContent } from "@/utils/pdfReader";
-import { analyzeWithAI } from "@/utils/analyzeWithAI";
+import { analyzeWithAI, ExtendedNode } from "@/utils/analyzeWithAI";
 import { Readable } from "stream";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +56,19 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
         // Analisis dengan AI => object dengan properti att_*
         const aiSections = await analyzeWithAI(extractedText);
 
+        const firstNode: ExtendedNode = aiSections[0] ?? {
+          label: "Ringkasan",
+          type: "article",
+          title: title,
+          content: extractedText.substring(0, 2000),
+          att_goal: "",
+          att_method: "",
+          att_background: "",
+          att_future: "",
+          att_gaps: "",
+          att_url: savedFilePath,
+        };
+
         // Simpan artikel dulu
         const article = await prisma.article.create({
           data: {
@@ -64,12 +77,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
             createdAt: new Date(),
           },
         });
-
-        const firstNode = aiSections[0] || {};
+        
         // Simpan node terkait article
         const node = await prisma.node.create({
           data: {
-            label: "ARTIKEL-01", // Bisa diganti sesuai kebutuhan
+            label: firstNode.label ||"ARTIKEL-01", // Bisa diganti sesuai kebutuhan
             title,
             att_goal: firstNode.att_goal || null,
             att_method: firstNode.att_method || null,
