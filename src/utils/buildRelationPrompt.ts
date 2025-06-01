@@ -11,46 +11,46 @@ interface Node {
 }
 
 export function buildRelationPrompt(nodes: Node[]): string {
-  let prompt = `You are an AI assistant tasked with analyzing relationships between scientific articles based on their content.\n`;
-  prompt += `All content below is written in **Bahasa Indonesia**. Focus on semantic similarity, not literal word matching.\n`;
-  prompt += `Each article has the following fields:\n- Title\n- Goal\n- Methodology\n- Background\n- Future Work\n- Research Gaps\n\n`;
+  let prompt = `Anda adalah asisten AI yang bertugas menganalisis hubungan semantik antar artikel ilmiah berdasarkan isi kontennya.\n`;
+  prompt += `Semua konten di bawah ini ditulis dalam **Bahasa Indonesia**. Fokus pada kemiripan makna, bukan sekadar kemiripan kata.\n`;
+  prompt += `Setiap artikel memiliki atribut berikut:\n- Judul\n- Tujuan\n- Metodologi\n- Latar Belakang\n- Arahan Penelitian Masa Depan\n- Gap/Kekurangan Penelitian\n\n`;
 
-  prompt += `Your task is to analyze the possible **semantic relationships** between articles. These include:\n`;
-  prompt += `- same_background: articles have a similar background/context\n`;
-  prompt += `- extended_method: article B extends or builds on article A's method\n`;
-  prompt += `- shares_goal: articles aim at the same or complementary goals\n`;
-  prompt += `- follows_future_work: article follows or fulfills a future direction from another\n`;
-  prompt += `- addresses_same_gap: both try to resolve the same research gap\n\n`;
+  prompt += `Tugas Anda adalah menganalisis kemungkinan **hubungan semantik** antar artikel. Jenis hubungan tersebut meliputi:\n`;
+  prompt += `- same_background: artikel memiliki latar belakang atau konteks yang serupa\n`;
+  prompt += `- extended_method: artikel B mengembangkan atau membangun dari metode artikel A\n`;
+  prompt += `- shares_goal: artikel memiliki tujuan yang sama atau saling melengkapi\n`;
+  prompt += `- follows_future_work: artikel mengikuti atau mewujudkan arahan masa depan dari artikel lain\n`;
+  prompt += `- addresses_same_gap: kedua artikel mencoba mengatasi kekurangan atau gap penelitian yang sama\n\n`;
 
   nodes.forEach((node, idx) => {
-    prompt += `Article ${idx + 1} (ID: ${node.id}):\n`;
-    prompt += `- Title: ${node.title}\n`;
-    prompt += `- Goal: ${node.att_goal}\n`;
-    prompt += `- Methodology: ${node.att_method}\n`;
-    prompt += `- Background: ${node.att_background}\n`;
-    prompt += `- Future Work: ${node.att_future}\n`;
-    prompt += `- Research Gaps: ${node.att_gaps}\n`;
+    prompt += `Artikel ${idx + 1} (ID: ${node.id}):\n`;
+    prompt += `- Judul: ${node.title}\n`;
+    prompt += `- Tujuan: ${node.att_goal}\n`;
+    prompt += `- Metodologi: ${node.att_method}\n`;
+    prompt += `- Latar Belakang: ${node.att_background}\n`;
+    prompt += `- Arahan Masa Depan: ${node.att_future}\n`;
+    prompt += `- Gap/Kekurangan: ${node.att_gaps}\n`;
     prompt += `- URL: ${node.att_url}\n\n`;
   });
 
-  prompt += `Now return a JSON array of the inferred relationships ("edges") between these articles.\n`;
-  prompt += `Each edge should follow this format:\n\n`;
+  prompt += `Sekarang kembalikan sebuah array JSON yang berisi relasi ("edges") antar artikel.\n`;
+  prompt += `Format setiap elemen:\n\n`;
   prompt += `[\n`;
   prompt += `  {\n`;
-  prompt += `    "from": <source_article_id>,\n`;
-  prompt += `    "to": <target_article_id>,\n`;
-  prompt += `    "relation": "<type_of_relation>",\n`;
-  prompt += `    "label": "<short_description_in_english_or_indonesian>"\n`;
+  prompt += `    "from": <id_artikel_sumber>,\n`;
+  prompt += `    "to": <id_artikel_tujuan>,\n`;
+  prompt += `    "relation": "<jenis_relasi>",\n`;
+  prompt += `    "label": "<deskripsi singkat dalam Bahasa Indonesia>"\n`;
   prompt += `  }\n`;
   prompt += `]\n\n`;
-  prompt += `If there are no relationships, return an empty array [] only.\n`;
-  prompt += `Enclose the JSON in a code block like this:\n\n`;
+  prompt += `Jika tidak ada relasi, cukup kembalikan array kosong [] tanpa penjelasan tambahan.\n`;
+  prompt += `Tolong **bungkus jawaban JSON dalam blok kode seperti berikut**:\n\n`;
   prompt += "```json\n";
   prompt += "[ ... ]\n";
   prompt += "```\n";
 
-  // Debug log (optional)
-  console.log("🧠 Prompt being sent to AI:\n", prompt);
+  // Debug (optional)
+  console.log("🧠 Prompt dikirim ke AI:\n", prompt);
 
   return prompt;
 }
