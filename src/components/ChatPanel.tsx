@@ -189,7 +189,7 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
   };
 
   return (
-    <Box style={{ display: 'flex', flexDirection: 'column', height: '68.2vh', maxHeight: '100vh', overflow: 'hidden'}}>
+    <Box style={{ display: 'flex', flexDirection: 'column', height: '68.5vh', maxHeight: '100vh', overflow: 'hidden'}}>
       {/* Chat History */}
       <ScrollArea 
         ref={scrollAreaRef}
@@ -235,10 +235,11 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
               radius="md"
               withBorder
               style={{
-                alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.sender === 'user' ? '#e0f7fa' : '#f3f4f6', maxWidth: '80%',
+                alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.sender === 'user' ? '#e0f7fa' : '#f3f4f6', maxWidth: '100%',
+                padding: '20px',
               }}
             >
-              <Text size="sm" c="dimmed" mb="xs"> 
+              <Text size="md" c="dimmed" mb="xs"> 
                 {msg.sender === 'user' ? 'Anda' : 'AI'}
               </Text>
               <Text size='sm' style={{ whiteSpace: 'pre-wrap'}}>{msg.text}</Text>
