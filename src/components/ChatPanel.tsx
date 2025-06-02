@@ -11,11 +11,14 @@ import {
   Group,
   ActionIcon,
   Stack,
+  TypographyStylesProvider,
 } from '@mantine/core';
 import { IconX, IconUpload } from '@tabler/icons-react';
 import React, { useEffect, useState, useRef } from 'react';
 import { ExtendedNode, ExtendedEdge } from '../types';
 import { notifications } from '@mantine/notifications';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface ChatPanelProps {
   selectedNode: ExtendedNode | null;
@@ -242,7 +245,152 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
               <Text size="md" c="dimmed" mb="xs"> 
                 {msg.sender === 'user' ? 'Anda' : 'AI'}
               </Text>
-              <Text size='sm' style={{ whiteSpace: 'pre-wrap'}}>{msg.text}</Text>
+              {msg.sender === 'user' ? (
+                <Text size='sm' style={{ whiteSpace: 'pre-wrap'}}>{msg.text}</Text>
+              ) : (
+                <TypographyStylesProvider>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      p: ({children}) => (
+                        <Text size ="sm" mb="xs">{children}</Text>
+                      ),
+                      h1: ({children}) => (
+                        <Text size="xl" fw={700} mb="md">{children}</Text>
+                      ),
+                      h3: ({ children }) => (
+                          <Text size="md" fw={600} mb="sm">{children}</Text>
+                        ),
+                        ul: ({ children }) => (
+                          <Box component="ul" ml="md" mb="sm">{children}</Box>
+                        ),
+                        ol: ({ children }) => (
+                          <Box component="ol" ml="md" mb="sm">{children}</Box>
+                        ),
+                        li: ({ children }) => (
+                          <Text component="li" size="sm" mb="xs">{children}</Text>
+                        ),
+                        strong: ({ children }) => (
+                          <Text component="span" fw={700}>{children}</Text>
+                        ),
+                        em: ({ children }) => (
+                          <Text component="span" fs="italic">{children}</Text>
+                        ),
+                        code: ({ children, className }) => {
+                          const isInline = !className;
+                          return isInline ? (
+                            <Text 
+                              component="code" 
+                              bg="gray.1" 
+                              px="xs" 
+                              style={{ 
+                                borderRadius: '4px',
+                                fontSize: '0.875em',
+                                fontFamily: 'monospace'
+                              }}
+                            >
+                              {children}
+                            </Text>
+                          ) : (
+                            <Paper 
+                              bg="gray.0" 
+                              p="sm" 
+                              mb="sm"
+                              style={{ 
+                                borderRadius: '8px',
+                                overflow: 'auto'
+                              }}
+                            >
+                              <Text 
+                                component="pre"
+                                size="sm"
+                                style={{ 
+                                  fontFamily: 'monospace',
+                                  margin: 0,
+                                  whiteSpace: 'pre-wrap'
+                                }}
+                              >
+                                <code>{children}</code>
+                              </Text>
+                            </Paper>
+                          );
+                        },
+                        table: ({ children }) => (
+                          <Box style={{ overflowX: 'auto' }} mb="md">
+                            <Box 
+                              component="table" 
+                              style={{ 
+                                width: '100%',
+                                borderCollapse: 'collapse',
+                                fontSize: '0.875rem'
+                              }}
+                            >
+                              {children}
+                            </Box>
+                          </Box>
+                        ),
+                        thead: ({ children }) => (
+                          <Box component="thead">{children}</Box>
+                        ),
+                        tbody: ({ children }) => (
+                          <Box component="tbody">{children}</Box>
+                        ),
+                        tr: ({ children }) => (
+                          <Box 
+                            component="tr"
+                            style={{ 
+                              borderBottom: '1px solid #e9ecef'
+                            }}
+                          >
+                            {children}
+                          </Box>
+                        ),
+                        th: ({ children }) => (
+                          <Box 
+                            component="th"
+                            p="sm"
+                            style={{ 
+                              backgroundColor: '#f8f9fa',
+                              fontWeight: 600,
+                              textAlign: 'left',
+                              border: '1px solid #dee2e6'
+                            }}
+                          >
+                            {children}
+                          </Box>
+                        ),
+                        td: ({ children }) => (
+                          <Box 
+                            component="td"
+                            p="sm"
+                            style={{ 
+                              border: '1px solid #dee2e6',
+                              verticalAlign: 'top'
+                            }}
+                          >
+                            {children}
+                          </Box>
+                        ),
+                        blockquote: ({ children }) => (
+                          <Paper 
+                            pl="md" 
+                            py="sm"
+                            mb="sm"
+                            style={{ 
+                              borderLeft: '4px solid #228be6',
+                              backgroundColor: '#f0f8ff'
+                            }}
+                          >
+                            {children}
+                          </Paper>
+                        )
+                      }}
+                    >
+                      {msg.text}
+
+                  </ReactMarkdown>
+                </TypographyStylesProvider>
+              )}
             </Paper>
           ))
         )}
