@@ -42,12 +42,15 @@ export async function POST(req: NextRequest, res: NextResponse){
         });
 
         const nodeDescriptions = nodes.map((node, i) => {
-            return `Node ${i + 1}:\n- Judul: ${node.title}\n- Deskripsi: ${node.att_goal} || 'Tidak tersedia'\n`
+            return `Node ${i + 1}:\n- Judul: ${node.title}\n- Deskripsi: ${node.att_goal || 'Tidak tersedia'}\n`
         }).join('\n');
         //hasil: node 1: judul....
 
         const edgeDescriptions = edges.map((edge, i) => {
-            return `Relasi ${i + 1}:\n- Dari: artikel-${edge.fromId} ke artikel-${edge.toId}\n- Jenis relasinya: ${edge.relation}\n- dengan penjelasan: ${edge.label || 'tidak diketahui'}\n`
+            const edgeFrom = nodes.find((n) => edge.fromId === n.id);
+            const edgeTo = nodes.find((n) => n.id === edge.id);
+
+            return `Relasi ${i + 1}:\n- Dari: artikel-${edgeFrom?.title} ke artikel-${edgeTo?.title}\n- Jenis relasinya: ${edge.relation}\n- dengan penjelasan: ${edge.label || 'tidak diketahui'}\n`
         }).join('\n');
         //hasil: relasi 1: dari 
 
