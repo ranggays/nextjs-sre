@@ -12,6 +12,7 @@ export interface ExtendedNode extends Node {
 }
 
 export interface ExtendedEdge extends Edge {
+  id: number;
   relation?: string;
   label?: string;
   color?: {
