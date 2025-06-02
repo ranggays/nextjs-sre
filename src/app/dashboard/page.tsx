@@ -172,6 +172,7 @@ export default function Home() {
           setNodes(mappedNodes);
 
           const mappedEdges = edgesData.map((edge: any) => ({
+            id: edge.id,
             from: edge.fromId,
             to: edge.toId,
             label: edge.label,
