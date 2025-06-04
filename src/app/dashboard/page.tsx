@@ -47,7 +47,10 @@ import {
   IconChevronRight,
   IconDots,
   IconSun,
-  IconMoon
+  IconMoon,
+  IconHome,
+  IconChartDots2Filled,
+  IconArticleFilled,
 } from '@tabler/icons-react';
 // import { nodes as nodeData } from '../../data/nodes';
 // import { edges as edgeData } from '../../data/edges';
@@ -56,6 +59,24 @@ import NetworkGraph from '../../components/NetworkGraph';
 import ChatPanel from '../../components/ChatPanel';
 import NodeDetail from '../../components/NodeDetail';
 import EdgeDetail from '../../components/EdgeDetail';
+
+const dashboard = [
+  {
+    icon: IconHome,
+    name: 'Home',
+    href: '/home'
+  },
+  {
+    icon: IconChartDots2Filled,
+    name: 'graph',
+    href: '/graph',
+  },
+  {
+    icon: IconArticleFilled,
+    name: 'article',
+    href: '/article'
+  }
+]
 
   const relationMapping = {
     'background': 'same_background',
@@ -354,6 +375,26 @@ export default function Home() {
 
       <AppShellNavbar p="lg">
         <Stack gap="md">
+
+          <Stack>
+            {dashboard.map((dash, i) => (
+              <Paper
+              key={i}>
+                <Text>{dash.name}</Text>
+              </Paper>
+            ))}
+          </Stack>
+
+          <Divider 
+            label={
+              <Group gap="xs">
+                <IconHistory size={16} />
+                <Text size="sm" fw={600}>Tambah Chat</Text>
+              </Group>
+            } 
+            labelPosition="left" 
+          />
+
           <Button 
             leftSection={<IconPlus size={18} />}
             variant="gradient"
