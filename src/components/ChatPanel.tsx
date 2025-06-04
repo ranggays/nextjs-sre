@@ -12,6 +12,8 @@ import {
   ActionIcon,
   Stack,
   TypographyStylesProvider,
+  useMantineColorScheme,
+  useMantineTheme,
 } from '@mantine/core';
 import { IconX, IconUpload } from '@tabler/icons-react';
 import React, { useEffect, useState, useRef } from 'react';
@@ -37,6 +39,9 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
   const [contextEdges, setContextEdges] = useState<ExtendedEdge[]>([]);
   const [uploading, setUpLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const { colorScheme } = useMantineColorScheme();
+  const theme = useMantineTheme();
+  const isDark = colorScheme === 'dark';
 
   useEffect(() => {
   if (selectedNode) {
@@ -238,7 +243,8 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
               radius="md"
               withBorder
               style={{
-                alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.sender === 'user' ? '#e0f7fa' : '#f3f4f6', maxWidth: '100%',
+                alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', backgroundColor: msg.sender === 'user' ? (isDark ? theme.colors.blue[9] : '#e0f7fa') : (isDark ? theme.colors.dark[6] : '#f3f4f6'),
+                color: isDark ? theme.colors.gray[2] : theme.black, maxWidth: '100%',
                 padding: '20px',
               }}
             >
