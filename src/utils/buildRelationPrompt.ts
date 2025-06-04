@@ -23,7 +23,7 @@ export function buildRelationPrompt(nodes: Node[]): string {
   prompt += `- addresses_same_gap: kedua artikel mencoba mengatasi kekurangan atau gap penelitian yang sama\n\n`;
 
   nodes.forEach((node, idx) => {
-    prompt += `Artikel ${idx + 1} (ID: ${node.id}):\n`;
+    prompt += `Artikel ${idx + 1} (ID: ${node.id}, Judul : "${node.title}"):\n`;
     prompt += `- Judul: ${node.title}\n`;
     prompt += `- Tujuan: ${node.att_goal}\n`;
     prompt += `- Metodologi: ${node.att_method}\n`;
@@ -44,11 +44,17 @@ export function buildRelationPrompt(nodes: Node[]): string {
   prompt += `  }\n`;
   prompt += `]\n\n`;
   prompt += `Jika tidak ada relasi, cukup kembalikan array kosong [] tanpa penjelasan tambahan.\n`;
+
   prompt += `Tolong **bungkus jawaban JSON dalam blok kode seperti berikut**:\n\n`;
   prompt += "```json\n";
   prompt += "[ ... ]\n";
   prompt += "```\n";
 
+  /*
+  */
+ prompt += `Gunakan **judul artikel** (bukan hanya ID atau "Artikel 1") dalam deskripsi relasi. \n`;
+ prompt += `Contoh label yang baik:\n`;
+ prompt += `- "Artikel 'Analisis Usability Aplikasi XYZ' menggunakan metode yang disederhanakan dari artikel 'Studi SEM-PLS pada Aplikasi XYZ'"\n\n`;
   // Debug (optional)
   console.log("🧠 Prompt dikirim ke AI:\n", prompt);
 
