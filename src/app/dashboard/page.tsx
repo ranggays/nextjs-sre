@@ -62,18 +62,18 @@ import EdgeDetail from '../../components/EdgeDetail';
 
 const dashboard = [
   {
-    icon: IconHome,
+    icon: <IconHome/>,
     name: 'Home',
     href: '/home'
   },
   {
-    icon: IconChartDots2Filled,
-    name: 'graph',
+    icon: <IconChartDots2Filled/>,
+    name: 'Knowledge Graph',
     href: '/graph',
   },
   {
-    icon: IconArticleFilled,
-    name: 'article',
+    icon: <IconArticleFilled/>,
+    name: 'Article',
     href: '/article'
   }
 ]
@@ -119,7 +119,14 @@ const dashboard = [
 export default function Home() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const theme = useMantineTheme();
-  const dark = colorScheme === 'dark';
+
+  const [mounted, setMounted] = useState(false);
+
+  const dark = mounted ? colorScheme === 'dark' : false;
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [sidebarOpened, setSidebarOpened] = useState(false);
   const [selectedNode, setSelectedNode] = useState<ExtendedNode | null>(null);
@@ -271,6 +278,62 @@ export default function Home() {
     { id: 3, title: 'Computer Vision Study', timestamp: '3 hari lalu', active: true },
   ];
 
+  if (!mounted) {
+    return (
+      <AppShell
+        header={{ height: 70 }}
+        navbar={{
+          width: 280,
+          breakpoint: 'sm',
+          collapsed: { mobile: true, desktop: true },
+        }}
+        padding={0}
+      >
+        <AppShellHeader>
+          <Container fluid h="100%" px="xl">
+            <Flex h="100%" justify="space-between" align="center">
+              <Group gap="md">
+                <Burger opened={false} onClick={() => {}} size="sm" />
+                <Group gap="xs">
+                  <ThemeIcon
+                    variant="gradient"
+                    gradient={{ from: 'blue', to: 'cyan', deg: 45 }}
+                    size="lg"
+                    radius="md"
+                  >
+                    <IconNetwork size={20} />
+                  </ThemeIcon>
+                  <Box>
+                    <Text 
+                      fw={800} 
+                      size="xl" 
+                      variant="gradient"
+                      gradient={{ from: 'blue', to: 'cyan', deg: 45 }}
+                    >
+                      mySRE
+                    </Text>
+                    <Text size="xs" c="dimmed">Knowledge Visualization Platform</Text>
+                  </Box>
+                </Group>
+              </Group>
+              <Group gap="sm">
+                {/* Loading placeholder for theme toggle */}
+                <ActionIcon variant="light" color="blue" size="lg" radius="md" disabled>
+                  <IconMoon size={18} />
+                </ActionIcon>
+              </Group>
+            </Flex>
+          </Container>
+        </AppShellHeader>
+        <AppShellMain>
+          <Container fluid h="100%" p="xl">
+            <Text>Loading...</Text>
+          </Container>
+        </AppShellMain>
+      </AppShell>
+    );
+  }
+
   return (
     <AppShell
       header={{ height: 70 }}
@@ -378,10 +441,15 @@ export default function Home() {
 
           <Stack>
             {dashboard.map((dash, i) => (
-              <Paper
-              key={i}>
+              <Flex
+              key={i}
+              style={{
+                gap: '50px',
+                justifyContent: 'left'
+              }}>
+                <ActionIcon>{dash.icon}</ActionIcon>
                 <Text>{dash.name}</Text>
-              </Paper>
+              </Flex>
             ))}
           </Stack>
 
