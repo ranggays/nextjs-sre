@@ -36,7 +36,7 @@ model Node {
   type    String
   content String
 
-  article Article @relation(fields: [articleId], references: [id])
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
   articleId Int
 
   fromEdges Edge[]  @relation("EdgeFrom")
@@ -51,10 +51,12 @@ model Edge {
   label     String?
   color     String?
 
-  from      Node  @relation("EdgeFrom" ,fields: [fromId], references: [id])
-  to      Node  @relation("EdgeTo", fields: [toId], references: [id])
+  from      Node  @relation("EdgeFrom" ,fields: [fromId], references: [id], onDelete: Cascade)
+  to      Node  @relation("EdgeTo", fields: [toId], references: [id], onDelete: Cascade)
 
-  article   Article @relation(fields: [articleId], references: [id])
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
   articleId  Int
+
+  @@unique([fromId, toId, relation])
 }
 
