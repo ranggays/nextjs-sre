@@ -14,8 +14,9 @@ import {
   TypographyStylesProvider,
   useMantineColorScheme,
   useMantineTheme,
+  Loader,
 } from '@mantine/core';
-import { IconX, IconUpload } from '@tabler/icons-react';
+import { IconX, IconUpload, IconDots } from '@tabler/icons-react';
 import React, { useEffect, useState, useRef } from 'react';
 import { ExtendedNode, ExtendedEdge } from '../types';
 import { notifications } from '@mantine/notifications';
@@ -38,6 +39,7 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
   const [contextNodes, setContextNodes] = useState<ExtendedNode[]>([]);
   const [contextEdges, setContextEdges] = useState<ExtendedEdge[]>([]);
   const [uploading, setUpLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const { colorScheme } = useMantineColorScheme();
   const theme = useMantineTheme();
@@ -56,13 +58,14 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
       scrollContainer.scrollTop = scrollContainer.scrollHeight;
     }
   }
- }, [messages]);
+ }, [messages, isLoading]);
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isLoading) return;
     setMessages((prev) => [...prev, {sender: 'user', text: input}]);
     const currentInput = input;
     setInput('');
+    setIsLoading(true);
 
     let payloadd = {};
 
@@ -110,6 +113,8 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
       setMessages((m) => [...m, {sender: 'ai', text: data.answer}]);
     } catch (error) {
       setMessages((m) => [...m, {sender: 'ai', text: 'terjadi kesalahan dalam menjawab pertanyaan'}]);
+    } finally{
+      setIsLoading(false);
     }
   };
 
@@ -196,6 +201,33 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
     }
   };
 
+  const LoadingMessage = () => {
+    return(
+    <Paper
+     shadow='xs'
+     radius='md'
+     withBorder
+     style={{
+      alignSelf: 'flex-start',
+      backgroundColor: isDark ? theme.colors.dark[6] : '#f3f4f6',
+      color: isDark ? theme.colors.gray[2] : theme.black,
+      maxWidth: '100%',
+      padding: '20px',
+     }}
+     >
+      <Text size='md' c='dimmed' mb='xs'>
+        AI
+      </Text>
+      <Group gap='xs' align='center'>
+        <Loader size='sm'/>
+        <Text size='sm' c='dimmed'>
+          Sedang mengetik
+        </Text>
+      </Group>
+     </Paper>
+    )
+  }
+
   return (
     <Box style={{ display: 'flex', flexDirection: 'column', height: '68.5vh', maxHeight: '100vh', overflow: 'hidden'}}>
       {/* Chat History */}
@@ -235,8 +267,8 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
               </Text>
             </Box>
           ) : (
-
-          messages.map((msg, idx) => (
+            <>
+          {messages.map((msg, idx) => (
             <Paper
               key={idx}
               shadow="xs"
@@ -398,7 +430,9 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
                 </TypographyStylesProvider>
               )}
             </Paper>
-          ))
+          ))}
+          {isLoading && <LoadingMessage/>}
+          </>
         )}
         </Stack>
       </ScrollArea>
@@ -436,7 +470,7 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
         }}>
         <Group mt="xs" gap="sm" align="flex-end">
           <Textarea
-            placeholder="Ketik pertanyaan..."
+            placeholder={isLoading ? "Menunggu Respon AI" : "Ketik pertanyaan..."}
             autosize
             minRows={3}
             maxRows={4}
