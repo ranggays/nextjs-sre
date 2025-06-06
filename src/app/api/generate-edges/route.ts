@@ -69,6 +69,7 @@ export const POST = async (req: NextRequest) => {
           nodes.find((n: any) => n.id === edge.from)?.id ||
           articleIds[0],
       })),
+      skipDuplicates: true,
     });
 
     return NextResponse.json({ success: true, nodes, edges });
