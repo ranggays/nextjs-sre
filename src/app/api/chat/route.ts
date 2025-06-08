@@ -79,7 +79,7 @@ export async function POST(req: NextRequest, res: NextResponse){
         })
         });
         answer = await ragAnswer.json();
-        return NextResponse.json({answer: answer.answer || 'Tidak ada jawaban yang ditemukan.'});  
+        return NextResponse.json({answer: answer.answer || 'Tidak ad jawaban yang ditemukan.'});  
     } else {
         answer = await chatAI(promptGeneral);
         return NextResponse.json({answer});
