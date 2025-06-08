@@ -97,6 +97,16 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           },
         });
 
+        await fetch("http://localhost:8000/ingest", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            pdf_url: `${process.env.BASE_URL}${savedFilePath}`
+          })
+        });
+
         // Panggil API generate edges (external route)
         const edgeRes = await fetch(`${process.env.BASE_URL}/api/generate-edges`, {
           method: "POST",
