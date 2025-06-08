@@ -70,7 +70,7 @@ export default function Home() {
         <Checkbox.Group
           value={activeRelations}
           onChange={setActiveRelations}
-          label="Tampilkan jenis relasi:"
+          label="Tampilkan jenis "
         >
           <Group mt="xs">
             <Checkbox value="background" label="Background" />
