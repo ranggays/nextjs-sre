@@ -9,4 +9,4 @@ export async function DELETE(req: NextRequest, {params} : {
     const id = Number(idParam);
 
     return NextResponse.json({msg : 'Delete Node Succed', id: id}, {status: 201});
-}
+};
