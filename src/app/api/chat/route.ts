@@ -79,6 +79,7 @@ export async function POST(req: NextRequest, res: NextResponse){
         })
         });
         answer = await ragAnswer.json();
+        console.log('answer', answer);
         return NextResponse.json({answer: answer.answer || 'Tidak ada jawaban yang ditemukan. sadlksa'});  
     } else {
         answer = await chatAI(promptGeneral);
