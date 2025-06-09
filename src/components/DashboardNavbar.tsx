@@ -13,6 +13,7 @@ import {
   ActionIcon,
   useMantineTheme,
   useMantineColorScheme,
+  rem,
 } from '@mantine/core';
 import {
   IconMenu,
@@ -55,90 +56,116 @@ interface DashboardNavbarProps {
   mounted: boolean;
   onChatSelect?: (chatId: number) => void;
   onNewChat?: () => void;
+  isCollapsed?: boolean;
 }
 
 export function DashboardNavbar({ 
   chatHistory, 
   mounted, 
   onChatSelect, 
-  onNewChat 
+  onNewChat,
+  isCollapsed = false, 
 }: DashboardNavbarProps) {
   const theme = useMantineTheme();
   const { colorScheme } = useMantineColorScheme();
   const dark = mounted ? colorScheme === 'dark' : false;
 
   return (
-    <Stack gap="md">
-      <Divider 
-        label={
-          <Group gap="xs">
-            <IconMenu size={16} />
-            <Text size="sm" fw={600}>Menu</Text>
-          </Group>
-        } 
-        labelPosition="left" 
-      />
+    <Stack gap={isCollapsed ? 'xs' : 'md'} style={{
+      height: '100%',
+      overflow: 'auto',
+      padding: isCollapsed ? rem(8) : rem(16),
+    }}>
 
-      <Stack>
+      {!isCollapsed && (
+        <Divider 
+          label={
+            <Group gap="xs">
+              <IconMenu size={16} />
+              <Text size="sm" fw={600}>Menu</Text>
+            </Group>
+          } 
+          labelPosition="left" 
+        />
+      )}
+
+      <Stack gap={isCollapsed ? 'xs' : 'md'}>
         {dashboard.map((dash, i) => (
           <Button
             key={i}
             component={Link}
             href={dash.href}
-            leftSection={dash.icon}
+            leftSection={isCollapsed ? dash.icon : null}
             variant="gradient"
             gradient={{
               from: 'blue', to: 'cyan', deg: 45
             }}
-            size='md'
+            size={isCollapsed ? 'xs' : 'md'}
             radius='md'
             fullWidth
             style={{
-              justifyItems: 'flex-start',
+              justifyItems: isCollapsed ? 'center' : 'flex-start',
+              minHeight: rem(36),
+              padding: isCollapsed ? rem(8) : undefined,
             }}
+            title={isCollapsed ? dash.name : undefined}
           >
-            {dash.name}
+            {isCollapsed ? dash.icon : dash.name}
           </Button>
         ))}
       </Stack>
 
-      <Divider 
-        label={
-          <Group gap="xs">
-            <IconMessageCircle size={16} />
-            <Text size="sm" fw={600}>Tambah Chat</Text>
-          </Group>
-        } 
-        labelPosition="left" 
-      />
+      {!isCollapsed && (
+        <Divider 
+          label={
+            <Group gap="xs">
+              <IconMessageCircle size={16} />
+              <Text size="sm" fw={600}>Tambah Chat</Text>
+            </Group>
+          } 
+          labelPosition="left" 
+        />
+      )}
 
       <Button 
-        leftSection={<IconPlus size={18} />}
+        leftSection={isCollapsed ? <IconPlus size={18} /> : null}
         variant="gradient"
         gradient={{ from: 'blue', to: 'cyan', deg: 45 }}
         size="md"
         radius="md"
         fullWidth
         onClick={onNewChat}
+        style={{
+          justifyContent: isCollapsed ? 'center' : 'flex-start',
+          minHeight: rem(36),
+          padding: isCollapsed ? rem(8) : undefined,
+        }}
+        title={isCollapsed ? 'Tambah Obrolan Baru' : undefined}
       >
-        Tambah Obrolan Baru
+        {isCollapsed ? <IconPlus size={18}/> : 'Tambah Obrolan Baru'}
       </Button>
       
-      <Divider 
-        label={
-          <Group gap="xs">
-            <IconHistory size={16} />
-            <Text size="sm" fw={600}>Riwayat Chat</Text>
-          </Group>
-        } 
-        labelPosition="left" 
-      />
+      {!isCollapsed && (
+        <Divider 
+          label={
+            <Group gap="xs">
+              <IconHistory size={16} />
+              <Text size="sm" fw={600}>Riwayat Chat</Text>
+            </Group>
+          } 
+          labelPosition="left" 
+        />
+      )}
       
-      <Stack gap="xs">
+      <Stack gap="xs" style={{
+        flex: 1,
+        overflow: 'hidden auto',
+        minHeight: 0,
+      }}>
         {chatHistory.map((chat) => (
           <Paper
             key={chat.id}
-            p="sm"
+            p={isCollapsed ? "xs" : "sm"}
             radius="md"
             withBorder
             style={{
@@ -151,27 +178,43 @@ export function DashboardNavbar({
                 : undefined,
               borderWidth: chat.active ? 2 : 1,
               transition: 'all 0.2s ease',
+              minHeight: rem(isCollapsed ? 40 : 60),
+              display: 'flex',
+              alignItems: 'center',
             }}
             onClick={() => onChatSelect?.(chat.id)}
+            title={isCollapsed ? chat.title : undefined}
           >
-            <Group justify="space-between" gap="xs">
-              <Box style={{ flex: 1, minWidth: 0 }}>
-                <Text 
-                  size="sm" 
-                  fw={500} 
-                  truncate
-                  c={chat.active ? 'blue' : undefined}
+            {isCollapsed ? (
+              <Group justify="center" style={{ width: '100%' }}>
+                <ActionIcon 
+                  variant="subtle" 
+                  color={chat.active ? "blue" : "gray"} 
+                  size="sm"
                 >
-                  {chat.title}
-                </Text>
-                <Text size="xs" c="dimmed">
-                  {chat.timestamp}
-                </Text>
-              </Box>
-              <ActionIcon variant="subtle" color="gray" size="sm">
-                <IconDots size={14} />
-              </ActionIcon>
-            </Group>
+                  <IconMessageCircle size={16} />
+                </ActionIcon>
+              </Group>              
+            ) : (
+              <Group justify="space-between" gap="xs">
+                <Box style={{ flex: 1, minWidth: 0 }}>
+                  <Text 
+                    size="sm" 
+                    fw={500} 
+                    truncate
+                    c={chat.active ? 'blue' : undefined}
+                  >
+                    {chat.title}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {chat.timestamp}
+                  </Text>
+                </Box>
+                <ActionIcon variant="subtle" color="gray" size="sm">
+                  <IconDots size={14} />
+                </ActionIcon>
+              </Group>
+            )}
           </Paper>
         ))}
       </Stack>
