@@ -41,6 +41,7 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
   const [uploading, setUpLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messageEndRef = useRef<HTMLDivElement>(null);
   const { colorScheme } = useMantineColorScheme();
   const theme = useMantineTheme();
   const isDark = colorScheme === 'dark';
@@ -52,12 +53,26 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
  }, [selectedNode]);
 
  useEffect(() => {
-  if (scrollAreaRef.current) {
-    const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
-    if (scrollContainer){
-      scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  const scrollToBottom = () => {
+    if (scrollAreaRef.current){
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        setTimeout(() => {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }, 100);
+      }
     }
-  }
+
+    if (messageEndRef.current) {
+      setTimeout(() => {
+        messageEndRef.current?.scrollIntoView({
+          behavior: 'smooth',
+        });
+      }, 150);
+    }
+  };
+
+  scrollToBottom();
  }, [messages, isLoading]);
 
   const handleSend = async () => {
@@ -66,6 +81,15 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
     const currentInput = input;
     setInput('');
     setIsLoading(true);
+
+    setTimeout(() => {
+      if (scrollAreaRef.current) {
+        const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+        if (scrollContainer) {
+          scrollContainer.scrollTop = scrollContainer.scrollHeight;
+        }
+      }
+    }, 50);
 
     let payloadd = {};
 
@@ -229,18 +253,17 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
   }
 
   return (
-    <Box style={{ display: 'flex', flexDirection: 'column', height: '68.5vh', maxHeight: '100vh', overflow: 'hidden'}}>
+    <Box style={{ display: 'flex', flexDirection: 'column', height: '100%', maxHeight: '100vh', overflow: 'hidden'}}>
       {/* Chat History */}
       <ScrollArea 
         ref={scrollAreaRef}
         style={{ 
-          flex: 1,
+          height: '535px',
           minHeight: 0,
         }}
         styles={{
           viewport: {
             '& > div': {
-              minHeight: '100%',
               display: 'flex !important',
               flexDirection: 'column',
               justifyContent: 'flex-start',
@@ -249,7 +272,7 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
         }}
         >
         <Stack gap="md" p="md" style={{
-          minHeight: '100%'
+          minHeight: '535px'
         }}>
           {messages.length === 0 ? (
             <Box
@@ -258,7 +281,7 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
                 alignItems: 'center',
                 justifyContent: 'center',
                 height: '100%',
-                minHeight: '200px',
+                minHeight: '505px',
                 textAlign: 'center',
               }}
             >
@@ -432,6 +455,7 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
             </Paper>
           ))}
           {isLoading && <LoadingMessage/>}
+          <div ref={messageEndRef} />
           </>
         )}
         </Stack>
@@ -439,6 +463,7 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
 
       {/* Context Preview Chips - just above the textarea */}
       {contextNodes.length > 0 && (
+        <Box px="md" style={{ flexShrink: 0}}>
         <Group  mb="xs" mt="sm" wrap="wrap">
           {contextNodes.map((node) => (
             <Paper
@@ -459,6 +484,7 @@ export default function ChatPanel({ selectedNode, selectedEdge }: ChatPanelProps
             </Paper>
           ))}
         </Group>
+        </Box>
       )}
 
       {/* Input */}
