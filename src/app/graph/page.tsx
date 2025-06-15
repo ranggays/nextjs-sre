@@ -100,6 +100,14 @@ import { DashboardLayout } from '@/components/DashboardLayout';
   return relationColors[displayRelation as keyof typeof relationColors] || 'gray';
 }
 
+function getDisplayRelationKey(apiRelation: string): string{
+    const reverseMapping: Record<string, string> = {};
+    Object.entries(relationMapping).forEach(([display, api]) => {
+      reverseMapping[api] = display;
+    });
+    return reverseMapping[apiRelation] || apiRelation;
+  }
+
 
 export default function Home() {
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
@@ -118,6 +126,7 @@ export default function Home() {
   const [selectedEdge, setSelectedEdge] = useState<ExtendedEdge | null>(null);
   const [detailModalNode, setDetailModalNode] = useState<ExtendedNode | null>(null);
   const [detailModalEdge, setDetailModalEdge] = useState<ExtendedEdge | null>(null);
+  const [edgeDetailReturn, setEdgeDetailReturn] = useState<ExtendedEdge | null>(null);
   const [activeRelations, setActiveRelations] = useState<string[]>([
     'background',
     'method',
@@ -466,7 +475,13 @@ export default function Home() {
       {/* Enhanced Modals */}
       <Modal
         opened={!!detailModalNode}
-        onClose={() => setDetailModalNode(null)}
+        onClose={() => {
+          setDetailModalNode(null);
+          if (edgeDetailReturn){
+            setDetailModalEdge(edgeDetailReturn);
+            setEdgeDetailReturn(null);
+          }
+        }}
         title={
           <Group gap="sm">
             <ThemeIcon variant="light" color="blue" size="md">
@@ -478,11 +493,17 @@ export default function Home() {
             </Box>
           </Group>
         }
-        size="lg"
+        size="75vw"
         radius="lg"
         shadow="xl"
       >
-        <NodeDetail node={detailModalNode} onClose={() => setDetailModalNode(null)} />
+        <NodeDetail node={detailModalNode} onClose={() => {
+          setDetailModalNode(null);
+          if (edgeDetailReturn){
+            setDetailModalEdge(edgeDetailReturn);
+            setEdgeDetailReturn(null);
+          }
+        }} />
       </Modal>
 
       <Modal
@@ -494,7 +515,7 @@ export default function Home() {
               <IconNetwork size={16} />
             </ThemeIcon>
             <Box>
-              <Text fw={600}>Relasi: {detailModalEdge?.relation}</Text>
+              <Text fw={600}>Relasi: {getRelationDisplayName(getDisplayRelationKey(detailModalEdge?.relation ?? ''))}</Text>
               <Text size="xs" c="dimmed">Detail hubungan antar artikel</Text>
             </Box>
           </Group>
@@ -503,7 +524,12 @@ export default function Home() {
         radius="lg"
         shadow="xl"
       >
-        <EdgeDetail edge={detailModalEdge} onClose={() => setDetailModalEdge(null)} />
+        <EdgeDetail edge={detailModalEdge} onClose={() => setDetailModalEdge(null)} onOpenNodeDetail={(nodeId) => {
+          const node = nodes.find((n) => n.id === nodeId);
+          setDetailModalNode(node ?? null);
+          setEdgeDetailReturn(detailModalEdge);
+          setDetailModalEdge(null);
+        }} />
       </Modal>
     </DashboardLayout>
   );
