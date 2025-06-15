@@ -1,19 +1,21 @@
 'use client';
 
 import { DashboardLayout } from "@/components/DashboardLayout"
-import { Box, Container, Grid, Group, ThemeIcon, Text, useMantineColorScheme, useMantineTheme, Badge, Card, Divider, Button, TextInput, ActionIcon, FileInput, LoadingOverlay } from "@mantine/core";
+import { Box, Container, Grid, Group, ThemeIcon, Text, useMantineColorScheme, useMantineTheme, Badge, Card, Divider, Button, TextInput, ActionIcon, FileInput, LoadingOverlay, Modal } from "@mantine/core";
 import { IconArticleFilled, IconEye, IconSquareRoundedX, IconSearch, IconPlus, IconUpload } from "@tabler/icons-react";
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import Link from "next/link";
 import { useCallback, useEffect, useState, useRef } from "react"
+import WebViewer from "@/components/PDFViewer";
+import { handleAnalytics } from "@/components/NodeDetail";
 
 interface Article {
     id: number,
     title: string,
     att_background: string,
     att_url: string,
-}
+};
 
 export default function Article(){
     const {colorScheme} = useMantineColorScheme();
@@ -28,6 +30,9 @@ export default function Article(){
     const [deletingArticleId, setDeletingArticleId] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
+    const [opened, setOpened] = useState(false);
+    const [selectedPDF, setSelectedPDF] = useState<string | null>(null);
+
     const dark = mounted ? colorScheme === 'dark' : false;
 
     const getArticle = async () => {
@@ -35,7 +40,7 @@ export default function Article(){
         const article = await res.json();
 
         setArticle(article);
-    }
+    };
 
     useEffect(() => {
         getArticle();
@@ -329,7 +334,10 @@ export default function Article(){
                                     <Text size="xl" fw={700}>{a?.title}</Text>
                                     <Text size="sm" c="dimmed">{a.att_background}</Text>
                                 </Box>
-                                <Button radius="lg" component={Link} href={a.att_url}>
+                                <Button radius="lg" onClick={() => {
+                                    setSelectedPDF(a.att_url);
+                                    setOpened(true);
+                                }}>
                                     <ThemeIcon variant="light" color="green" size="xs">
                                         <IconEye/>
                                     </ThemeIcon>
@@ -345,6 +353,57 @@ export default function Article(){
                 </Card>
             </Grid>
         </Container>
+        <Modal
+        opened={opened}
+        onClose={() => {
+            setOpened(false); 
+            setSelectedPDF(null)
+        }}
+        title="Lihat Artikel"
+        size="90%"
+        padding='sm'
+        centered
+        overlayProps={{ blur: 3, style: {
+            padding: '1.5rem'
+        }}}
+        styles={{
+            content: {
+                height: '90vh',
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: 0,
+            },
+            body: {
+                // height: 'calc(100% - 60px)',
+                // overflow: 'hidden',
+                flex: 1,
+                padding: 0,
+                display: 'flex',
+                overflow: 'auto',
+                flexDirection: 'column',
+            },
+            header: {
+                padding: '1rem',
+                position: 'sticky',
+                top: 0,
+                zIndex: 10,
+                // backgroundColor: theme.colors.gray[0],
+            }
+        }}>
+                {selectedPDF && (
+                    <WebViewer
+                        key={selectedPDF}
+                        fileUrl={selectedPDF}
+                        path="/lib/webviewer"
+                        initialDoc={selectedPDF}
+                        licenseKey={process.env.LICENSE_KEY_PDF}
+                        onAnalytics={handleAnalytics}
+                        >
+
+                        </WebViewer>
+                )}
+        </Modal>
     </DashboardLayout>
     )
 }
