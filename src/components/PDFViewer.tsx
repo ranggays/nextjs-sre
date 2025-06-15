@@ -3,6 +3,7 @@
 import { timeStamp } from 'console';
 import { useEffect, useRef } from 'react';
 import { Core } from '@pdftron/webviewer';
+import { text } from 'stream/consumers';
 
 interface WebViewerProps{
   fileUrl: string,
@@ -68,6 +69,7 @@ export default function WebViewer({fileUrl, path, initialDoc, licenseKey, onAnal
             });
           };
 
+          /*
           // Page number updated event
           const onPageNumberUpdated = (pageNumber: number) => {
             console.log('Page Number updated!', pageNumber);
@@ -78,7 +80,9 @@ export default function WebViewer({fileUrl, path, initialDoc, licenseKey, onAnal
               timeStamp: new Date().toISOString()
             });
           };
+          */
 
+          /*
           // Text selected event
           const onTextSelected = (quads: any, selectedText: string) => {
             onAnalytics?.({
@@ -88,14 +92,15 @@ export default function WebViewer({fileUrl, path, initialDoc, licenseKey, onAnal
               timeStamp: new Date().toISOString()
             });
           };
+          */
 
           // Annotation changed event with deduplication
           const onAnnotationChanged = async (annotations: any, action: string) => {
             if (!['add', 'modify', 'delete'].includes(action)) return;
-            if (isProcessingAnnotation) return; // Prevent duplicate processing
+            if (isProcessingAnnotation) return;
 
             const now = Date.now();
-            if (now - documentLoadedAt < 2000) return; // skip auto-load annotations
+            if (now - documentLoadedAt < 2000) return;
 
             isProcessingAnnotation = true;
 
@@ -103,13 +108,44 @@ export default function WebViewer({fileUrl, path, initialDoc, licenseKey, onAnal
               for (const ann of annotations) {
                 if (!ann || ann.Imported) continue;
 
-                const contents = ann.getContents?.() || '';
+                const subject = ann.Subject || ann.getCustomData?.('type') || ann.constructor?.name || 'unknown';
 
-                // Lewati highlight tanpa isi komentar
-                if (
-                  (ann.Subject === 'Highlight' || ann.getCustomData?.('type') === 'Highlight') &&
-                  !contents
-                ) {
+                const isTextMarkup = 
+                ['Highlight', 'Underline', 'Squiggly', 'StrikeOut'].includes(subject) || ['HighlightAnnotation', 'UnderlineAnnotation', 'TextMarkupAnnotation'].includes(ann.constructor?.name || '') || ['Highlight', 'Underline', 'StrikeOut'].includes(ann.getCustomData?.('type') || '');
+
+                let contents = ann.getContents?.() || '';
+                let highlightedText = '';
+
+                if (isTextMarkup) {
+                  const quads = ann.getQuads?.();
+                  if (quads && quads.length > 0) {
+                    const texts: string[] = [];
+
+                    for (const quad of quads) {
+                      const pageNumber = ann.PageNumber;
+                      const selectionStartPoint = { x: quad.x1, y: quad.y1, pageNumber };
+                      const selectionEndPoint = { x: quad.x3, y: quad.y3, pageNumber };
+
+                      documentViewer.select(selectionStartPoint, selectionEndPoint);
+
+                      // Tunggu sebentar agar selection bisa selesai (karena asynchronous UI)
+                      await new Promise((resolve) => setTimeout(resolve, 50));
+
+                      const selected = documentViewer.getSelectedText();
+                      if (selected) texts.push(selected);
+                    }
+
+                    highlightedText = texts.join(' ').trim();
+                  } else {
+                    console.warn('No quads found for annotation:', ann);
+                  }
+                }
+
+                documentViewer.clearSelection();
+
+                // Skip jika kosong semua (tanpa komentar dan teks)
+                if (!contents && !highlightedText) {
+                  console.log('Annotation skipped: tidak ada isi & tidak ada highlight text');
                   continue;
                 }
 
@@ -117,23 +153,26 @@ export default function WebViewer({fileUrl, path, initialDoc, licenseKey, onAnal
                   action: 'annotation_' + action,
                   document: initialDoc,
                   metadata: {
-                    annotationType: ann.Subject || ann.getCustomData?.('type') || 'unknown',
+                    annotationType: subject,
+                    highlightedText,
                     contents,
                     pageNumber: ann.PageNumber,
                     rect: ann.getRect?.(),
                     author: ann.Author,
-                    annotationId: ann.Id, // Tambahkan ID untuk tracking
+                    annotationId: ann.Id,
                   },
                   timeStamp: new Date().toISOString(),
                 });
               }
+            } catch (err) {
+              console.error('Error in onAnnotationChanged:', err);
             } finally {
-              // Reset flag setelah delay singkat
               setTimeout(() => {
                 isProcessingAnnotation = false;
               }, 100);
             }
           };
+
 
           // Search term submitted event
           const onSearchTermSubmitted = (searchTerm: string) => {
@@ -156,8 +195,8 @@ export default function WebViewer({fileUrl, path, initialDoc, licenseKey, onAnal
 
           // Add event listeners
           documentViewer.addEventListener('documentLoaded', onDocumentLoaded);
-          documentViewer.addEventListener('pageNumberUpdated', onPageNumberUpdated);
-          documentViewer.addEventListener('textSelected', onTextSelected);
+          // documentViewer.addEventListener('pageNumberUpdated', onPageNumberUpdated);
+          // documentViewer.addEventListener('textSelected', onTextSelected);
           annotationManager.addEventListener('annotationChanged', onAnnotationChanged);
           instance.UI.addEventListener('searchTermSubmitted', onSearchTermSubmitted);
           instance.UI.addEventListener('downloadPressed', onDownloadPressed);
@@ -165,8 +204,8 @@ export default function WebViewer({fileUrl, path, initialDoc, licenseKey, onAnal
           // Store event listeners for cleanup
           eventListenersRef.current = [
             { target: documentViewer, event: 'documentLoaded', handler: onDocumentLoaded },
-            { target: documentViewer, event: 'pageNumberUpdated', handler: onPageNumberUpdated },
-            { target: documentViewer, event: 'textSelected', handler: onTextSelected },
+            // { target: documentViewer, event: 'pageNumberUpdated', handler: onPageNumberUpdated },
+            // { target: documentViewer, event: 'textSelected', handler: onTextSelected },
             { target: annotationManager, event: 'annotationChanged', handler: onAnnotationChanged },
             { target: instance.UI, event: 'searchTermSubmitted', handler: onSearchTermSubmitted },
             { target: instance.UI, event: 'downloadPressed', handler: onDownloadPressed },
