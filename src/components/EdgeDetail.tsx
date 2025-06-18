@@ -171,7 +171,7 @@ return (
                     <>
                     <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
                     <Text size="md" style={{ wordBreak: 'break-word' }}>
-                      {edgeNode?.from?.title}
+                      {edgeNode?.to?.title}
                     </Text>
                     {edgeNode?.to?.id && onOpenNodeDetail && (
                       <ThemeIcon
