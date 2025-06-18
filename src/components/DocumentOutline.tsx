@@ -27,6 +27,7 @@ import {
   IconChevronRight,
 } from '@tabler/icons-react';
 import { Editor } from '@tiptap/react';
+import { TextSelection } from '@tiptap/pm/state';
 
 interface HeadingItem {
   id: string;
@@ -84,11 +85,11 @@ export default function DocumentOutline({ editor }: DocumentOutlineProps) {
     editor.commands.setTextSelection(position);
     
     // Scroll to the heading in the editor
-    const editorElement = editor.view.dom;
-    const headingElement = editorElement.querySelector(`[data-position="${position}"]`);
-    if (headingElement) {
-      headingElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+    editor.view.dispatch(
+        editor.state.tr.setSelection(
+            TextSelection.near(editor.state.doc.resolve(position))
+        ).scrollIntoView()
+    );
   };
 
   const deleteHeading = (position: number) => {
