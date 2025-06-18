@@ -29,7 +29,7 @@ const attributeColors = {
 
 export const handleAnalytics = async (analyticsData: any) => {
   try {
-    await fetch('/api/analytics', {
+    await fetch('/api/annotation', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
