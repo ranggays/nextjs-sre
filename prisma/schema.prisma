@@ -19,6 +19,11 @@ model Article {
   filePath  String
   nodes    Node[]
   edges    Edge[]
+
+  annotations Annotation[]
+  userId  Int?
+  user  User? @relation(fields: [userId], references:[id])
+
   createdAt DateTime  @default(now())
   updateAt  DateTime  @updatedAt
 }
@@ -71,3 +76,54 @@ model Analytics {
   @@map("analytics")
 }
 
+enum Role{
+  USER
+  ADMIN
+}
+
+model User {
+  id  Int @id @default(autoincrement())
+  email String  @unique
+  name  String?
+  password  String
+  role  Role  @default(USER)
+  createdAt DateTime  @default(now())
+  updateAt  DateTime  @updatedAt
+
+  articles  Article[]
+  drafts  Draft[]
+  annotations Annotation[]
+}
+
+model Draft {
+  id  Int @id @default(autoincrement())
+  userId  Int?
+  user  User? @relation(fields: [userId], references: [id])
+  title String
+  sections  DraftSection[]
+  createdAt DateTime  @default(now())
+}
+
+model DraftSection {
+  id  Int @id @default(autoincrement())
+  draftId Int
+  draft Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  title String
+  content String
+  annotations Annotation[]
+}
+
+model Annotation {
+  id  Int @id @default(autoincrement())
+  userId Int? 
+  user User?  @relation(fields: [userId], references: [id])
+  articleId  Int?
+  article Article? @relation(fields: [articleId], references: [id])
+  page  Int
+  highlightedText String
+  comment String
+  semanticTag String?
+  draftSectionId  Int?
+  draftSection  DraftSection? @relation(fields: [draftSectionId], references: [id])
+  createdAt DateTime  @default(now())
+}
