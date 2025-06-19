@@ -35,4 +35,27 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({message: 'Internal Server Error'}, {status: 500});
     }
 
+};
+
+export async function GET(){
+    try {
+        const annotations = await prisma.annotation.findMany({
+            include: {
+                article: {
+                    select: {
+                        id: true,
+                        title: true,
+                    }
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+
+        return NextResponse.json(annotations, {status: 200});
+    } catch (error) {
+        console.error('Error fetching annotations:', error);
+        return NextResponse.json({error: 'Failed to fetch annotations'}, {status: 500});
+    }
 }
