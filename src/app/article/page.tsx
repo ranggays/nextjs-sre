@@ -2,19 +2,34 @@
 
 import { DashboardLayout } from "@/components/DashboardLayout"
 import { Box, Container, Grid, Group, ThemeIcon, Text, useMantineColorScheme, useMantineTheme, Badge, Card, Divider, Button, TextInput, ActionIcon, FileInput, LoadingOverlay, Modal } from "@mantine/core";
-import { IconArticleFilled, IconEye, IconSquareRoundedX, IconSearch, IconPlus, IconUpload } from "@tabler/icons-react";
+import { IconArticleFilled, IconEye, IconSquareRoundedX, IconSearch, IconPlus, IconUpload, IconHistory, IconFile, IconCalendar, IconNotes } from "@tabler/icons-react";
 import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import Link from "next/link";
 import { useCallback, useEffect, useState, useRef } from "react"
 import WebViewer from "@/components/PDFViewer";
 import { handleAnalytics } from "@/components/NodeDetail";
+import Loading from "../Loading";
 
 interface Article {
     id: number,
     title: string,
     att_background: string,
     att_url: string,
+};
+
+interface Annotation {
+    id: number,
+    articleId: number,
+    page: number,
+    highlightedText: string,
+    comment: string,
+    semanticTag?: string,
+    createdAt: string,
+    article: {
+        id: number,
+        title: string,
+    },
 };
 
 export default function Article(){
@@ -33,6 +48,14 @@ export default function Article(){
     const [opened, setOpened] = useState(false);
     const [selectedPDF, setSelectedPDF] = useState<string | null>(null);
 
+    //for annotation
+    const [annotations, setAnnotations] = useState<Annotation[]>([]);
+    const [showHistory, setShowHistory] = useState(false);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
+    //for delete
+    const [loadingDeleteAnnotations, setLoadingDeleteAnnotations] = useState(false);
+
     const dark = mounted ? colorScheme === 'dark' : false;
 
     const getArticle = async () => {
@@ -46,6 +69,33 @@ export default function Article(){
         getArticle();
         setMounted(true);
     }, []);
+
+    //config & usestate for annotations
+    const getAnnotations = async () => {
+        setLoadingHistory(true);
+        try {
+            const res = await fetch('/api/annotation');
+            if (res.ok){
+                const data = await res.json();
+                setAnnotations(data);
+            }
+        } catch (error) {
+            console.error('Error fetching annotations: ', error);
+            notifications.show({
+                title: 'Error',
+                message: 'Gagal memuat riwayat catatan',
+                color: 'red',
+            });
+        } finally{
+            setLoadingHistory(false);
+        }
+    };
+
+    useEffect(() => {
+        if (showHistory){
+            getAnnotations();
+        }
+    }, [showHistory]);
 
     const chatHistory = [
         { id: 1, title: 'Analisis Machine Learning', timestamp: '2 jam lalu', active: false },
@@ -174,6 +224,7 @@ export default function Article(){
                 title: 'Format tidak didukung',
                 message: 'Mohon upload file PDF',
                 color: 'yellow',
+                position: 'top-right'
             });
             return;
         }
@@ -208,6 +259,7 @@ export default function Article(){
                 title: 'Berhasil',
                 message: `File "${file.name}" berhasil diunggah dan diproses`,
                 color: 'green',
+                position: 'top-right'
             });
 
             console.log('File Uploaded:', data);
@@ -234,6 +286,87 @@ export default function Article(){
         a.att_background.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+
+        const handleDeleteAnnotations = async (id: number, highlightedText: string) => {
+        modals.openConfirmModal({
+            title: (
+                <Text size="lg" fw={600} c="red">
+                    🗑️ Konfirmasi Hapus Annotation
+                </Text>
+            ),
+            children: (
+                <Box>
+                    <Text size="sm" mb="md">
+                        Apakah Anda yakin ingin menghapus annotation berikut?
+                    </Text>
+                    <Box p="md" style={{
+                        backgroundColor: theme.colors.gray[0],
+                        borderRadius: theme.radius.md,
+                        border: `1px solid ${theme.colors.red[2]}`
+                    }}>
+                        <Text fw={600} size="sm" mb="xs">{highlightedText}</Text>
+                        <Text size="xs" c="dimmed">ID: {id}</Text>
+                    </Box>
+                    <Text size="sm" c="red" fw={500} mt="md">
+                        ⚠️ Tindakan ini tidak dapat dibatalkan!
+                    </Text>
+                </Box>
+            ),
+            labels: {
+                confirm: 'Ya, Hapus Anotasi',
+                cancel: 'Batal'
+            },
+            confirmProps: {
+                color: 'red',
+                size: 'md',
+                leftSection: <IconSquareRoundedX size={16} />
+            },
+            cancelProps: {
+                variant: 'outline',
+                size: 'md'
+            },
+            size: 'md',
+            centered: true,
+            onConfirm: async () => {
+                await performDeleteAnnotations(id);
+            },
+        });
+    };
+
+
+    const performDeleteAnnotations = async (id: number) => {
+        try {            
+            setLoadingDeleteAnnotations(true);
+            const res = await fetch(`/api/annotation/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+            });
+
+            if (res.ok){
+                notifications.show({
+                    title: 'Berhasil',
+                    message: 'Annotasi berhasil dihapus',
+                    color: 'green',
+                    position: 'top-right'
+                });
+            } else {
+                throw new Error('gagal delete annotation');
+            }
+        } catch (error: any) {
+            console.error('Gagal fetch delete annotation :', error?.message );
+            notifications.show({
+                title: 'Gagal',
+                message: 'Annotasi gagal dihapus',
+                color: 'red',
+                position: 'top-right'
+            })
+        } finally{
+            setLoadingDeleteAnnotations(false);
+        }
+    };
+
     return(
         <DashboardLayout
         sidebarOpened={sidebarOpened}
@@ -243,7 +376,10 @@ export default function Article(){
         onChatSelect={handleChatSelect}
         onNewChat={handleNewChat}
     >
-        <Container h='100%' p='xl'>
+        <Container h='100%' p='xl' style={{
+            display: 'flex',
+            justifyContent: 'center'
+        }}>
             <Grid gutter='xl' h='100%'>
                 <Card
                   shadow="sm"
@@ -306,6 +442,16 @@ export default function Article(){
                         >
                             {uploading ? 'Mengupload...' : 'Upload PDF'}
                         </Button>
+                        <Button
+                            leftSection={<IconHistory size={16} />}
+                            onClick={() => setShowHistory(true)}
+                            radius="md"
+                            size="md"
+                            variant="outline"
+                            color="blue"
+                        >
+                            History Catatan
+                        </Button>
                     </Group>
 
                     <Divider mb="lg" />
@@ -354,42 +500,42 @@ export default function Article(){
             </Grid>
         </Container>
         <Modal
-        opened={opened}
-        onClose={() => {
-            setOpened(false); 
-            setSelectedPDF(null)
-        }}
-        title="Lihat Artikel"
-        size="90%"
-        padding='sm'
-        centered
-        overlayProps={{ blur: 3, style: {
-            padding: '1.5rem'
-        }}}
-        styles={{
-            content: {
-                height: '90vh',
-                maxHeight: '90vh',
-                display: 'flex',
-                flexDirection: 'column',
-                padding: 0,
-            },
-            body: {
-                // height: 'calc(100% - 60px)',
-                // overflow: 'hidden',
-                flex: 1,
-                padding: 0,
-                display: 'flex',
-                overflow: 'auto',
-                flexDirection: 'column',
-            },
-            header: {
-                padding: '1rem',
-                position: 'sticky',
-                top: 0,
-                zIndex: 10,
-                // backgroundColor: theme.colors.gray[0],
-            }
+            opened={opened}
+            onClose={() => {
+                setOpened(false); 
+                setSelectedPDF(null)
+            }}
+            title="Lihat Artikel"
+            size="90%"
+            padding='sm'
+            centered
+            overlayProps={{ blur: 3, style: {
+                padding: '1.5rem'
+            }}}
+            styles={{
+                content: {
+                    height: '90vh',
+                    maxHeight: '90vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    padding: 0,
+                },
+                body: {
+                    // height: 'calc(100% - 60px)',
+                    // overflow: 'hidden',
+                    flex: 1,
+                    padding: 0,
+                    display: 'flex',
+                    overflow: 'auto',
+                    flexDirection: 'column',
+                },
+                header: {
+                    padding: '1rem',
+                    position: 'sticky',
+                    top: 0,
+                    zIndex: 10,
+                    // backgroundColor: theme.colors.gray[0],
+                }
         }}>
                 {selectedPDF && (
                     <WebViewer
@@ -403,6 +549,127 @@ export default function Article(){
 
                         </WebViewer>
                 )}
+        </Modal>
+        <Modal
+            opened={showHistory}
+            onClose={() => setShowHistory(false)}
+            title={
+                <Group gap="xs">
+                    <ThemeIcon variant="light" color="blue" size="sm">
+                        <IconHistory size={16} />
+                    </ThemeIcon>
+                    <Text fw={600}>Riwayat Catatan & Highlight</Text>
+                </Group>
+            }
+            size="xl"
+            padding="lg"
+            centered
+            overlayProps={{ blur: 2 }}
+            styles={{
+                content: {
+                    maxHeight: '85vh',
+                },
+                body: {
+                    maxHeight: 'calc(85vh - 80px)',
+                    overflow: 'auto',
+                }
+            }}
+        >
+            <LoadingOverlay visible={loadingHistory} />
+            
+            {annotations.length === 0 ? (
+                <Box style={{ textAlign: 'center', padding: '3rem' }}>
+                    <ThemeIcon variant="light" color="gray" size="xl" mx="auto" mb="md">
+                        <IconNotes size={32} />
+                    </ThemeIcon>
+                    <Text size="lg" c="dimmed" mb="xs">
+                        Belum ada catatan
+                    </Text>
+                    <Text size="sm" c="dimmed">
+                        Mulai highlight dan buat catatan pada artikel untuk melihat riwayatnya di sini
+                    </Text>
+                </Box>
+            ) : (
+                <Box>
+                    <Text size="sm" c="dimmed" mb="lg">
+                        Total {annotations.length} catatan ditemukan
+                    </Text>
+                    
+                    {annotations.map((annotation) => (
+                        <Card key={annotation.id} mb="md" p="md" withBorder radius="md">
+                            <Group justify="space-between" align="start" mb="sm">
+                                <Group gap="xs">
+                                    <ThemeIcon variant="light" color="blue" size="sm">
+                                        <IconFile size={14} />
+                                    </ThemeIcon>
+                                    <Text size="sm" fw={600} c="blue">
+                                        {annotation.article.title}
+                                    </Text>
+                                </Group>
+                                <Group gap="xs">
+                                    <Badge variant="light" size="xs">
+                                        Hal. {annotation.page}
+                                    </Badge>
+                                    <Badge variant="light" color="gray" size="xs">
+                                        <IconCalendar size={10} style={{ marginRight: 4 }} />
+                                        {new Date(annotation.createdAt).toLocaleDateString('id-ID', {
+                                            day: 'numeric',
+                                            month: 'short',
+                                            year: 'numeric',
+                                            hour: '2-digit',
+                                            minute: '2-digit'
+                                        })}
+                                    </Badge>
+                                </Group>
+                            </Group>
+                            
+                            <Box mb="xs">
+                                <Text size="xs" c="dimmed" mb="xs">Highlighted Text:</Text>
+                                <Box p="xs" style={{
+                                    backgroundColor: theme.colors.yellow[0],
+                                    borderLeft: `3px solid ${theme.colors.yellow[4]}`,
+                                    borderRadius: theme.radius.sm
+                                }}>
+                                    <Text size="sm" c="dark" style={{ fontStyle: 'italic'}}>
+                                        "{annotation.highlightedText}"
+                                    </Text>
+                                </Box>
+                            </Box>
+                            
+                            {annotation.comment && (
+                                <Box mb="sm">
+                                    <Text size="xs" c="dimmed" mb="xs">Catatan:</Text>
+                                    <Text size="sm" p="xs" c="dark" style={{
+                                        backgroundColor: theme.colors.blue[0],
+                                        borderRadius: theme.radius.sm,
+                                        borderLeft: `3px solid ${theme.colors.blue[4]}`
+                                    }}>
+                                        {annotation.comment}
+                                    </Text>
+                                </Box>
+                            )}
+                            
+                            {annotation.semanticTag && (
+                                <Box mt="xs">
+                                    <Badge variant="filled" size="xs" color="grape">
+                                        {annotation.semanticTag}
+                                    </Badge>
+                                </Box>
+                            )}
+                            <Box display='flex' style={{
+                                justifyContent: 'right',
+                            }}>
+                                <Button 
+                                    color="red"
+                                    onClick={() => handleDeleteAnnotations(annotation.id, annotation.highlightedText)}
+                                >
+                                    Hapus
+                                </Button>
+                            </Box>
+                        </Card>
+                    ))}
+                </Box>
+            )}
         </Modal>
     </DashboardLayout>
     )
