@@ -8,6 +8,12 @@ export async function DELETE(req: NextRequest, {params} : {
 
     const id = Number(idParam);
 
+    await prisma.annotation.deleteMany({
+        where: {
+            articleId: id
+        }
+    });
+
     await prisma.article.delete({
         where: {
             id: id
