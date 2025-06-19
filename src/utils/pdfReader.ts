@@ -1,9 +1,8 @@
 import fs from 'fs';
 import pdfParse from 'pdf-parse';
 
-export async function readPDFContent(filePath: string): Promise<string>{
+export async function readPDFContent(buffer: Buffer): Promise<string>{
     try {        
-        const buffer = fs.readFileSync(filePath);
         const data = await pdfParse(buffer);
         return data.text;
     } catch (error: any) {
