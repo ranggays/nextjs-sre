@@ -1,12 +1,14 @@
 'use client';
 
-import { Modal, Table, Text } from '@mantine/core';
+import { Modal, Table, Text, Loader, Skeleton, Group, Badge, Paper, ThemeIcon, Box, Stack } from '@mantine/core';
 import { ExtendedEdge } from '../types';
 import { useEffect, useState } from 'react';
+import { IconArrowDown, IconNetwork, IconArticle, IconEye  } from '@tabler/icons-react';
 
 interface EdgeDetailProps {
   edge: ExtendedEdge | null;
   onClose: () => void;
+  onOpenNodeDetail?:(nodeId:number) => void;
 };
 
 interface PopulatedEdge {
@@ -23,7 +25,50 @@ interface PopulatedEdge {
   };
 };
 
-export default function EdgeDetail({ edge, onClose }: EdgeDetailProps) {
+const relationDisplayNames: Record<string, string> = {
+  'background': 'Latar Belakang',
+  'method': 'Metodologi',
+  'goal': 'Tujuan',
+  'future': 'Arahan Masa Depan',
+  'gap': 'Gap Penelitian'
+};
+
+const relationColors: Record<string, string> = {
+  'background': 'blue',
+  'method': 'green',
+  'gap': 'red',
+  'future': 'violet',
+  'goal': 'orange'
+};
+
+function getDisplayRelation(relation: string | null | undefined) {
+  if (!relation) return '-';
+  // Map API relation to display key
+  const mapping: Record<string, string> = {
+    'same_background': 'background',
+    'extended_method': 'method',
+    'shares_goal': 'goal',
+    'follows_future_work': 'future',
+    'addresses_same_gap': 'gap'
+  };
+  const internalKey = mapping[relation] || relation;
+  return relationDisplayNames[internalKey] || relation;
+}
+
+function getRelationColor(relation: string | null | undefined) {
+  if (!relation) return 'gray';
+  const mapping: Record<string, string> = {
+    'same_background': 'background',
+    'extended_method': 'method',
+    'shares_goal': 'goal',
+    'follows_future_work': 'future',
+    'addresses_same_gap': 'gap'
+  };
+  const key = mapping[relation] || relation;
+  return relationColors[key] || 'gray';
+}
+
+export default function EdgeDetail({ edge, onClose, onOpenNodeDetail }: EdgeDetailProps) {
 
   const [edgeNode, setEdgeNode] = useState<PopulatedEdge>();
   const [loading, setLoading] = useState(false);
@@ -46,22 +91,118 @@ export default function EdgeDetail({ edge, onClose }: EdgeDetailProps) {
 
   if (!edge) return null;
 
-  return (
-    <Modal opened={!!edge} onClose={onClose} title="Detail Hubungan" size="lg" >
-      <Table striped highlightOnHover withTableBorder>
-        <tbody>
-          <tr><td>Jenis Relasi</td><td>{edge.relation || '-'}</td></tr>
-          <tr><td>Dari Artikel</td><td>{edgeNode?.from?.title}</td></tr>
-          <tr><td>Ke Artikel</td><td>{edgeNode?.to?.title}</td></tr>
-        </tbody>
-      </Table>
+return (
+    <Stack gap="lg">
+      <Paper p="md" radius="md" withBorder>
+        <Group justify="space-between" mb="md">
+          <Badge 
+            size="lg" 
+            variant="dot" 
+            color={getRelationColor(edge.relation)}
+          >
+            {getDisplayRelation(edge.relation)}
+          </Badge>
+          <ThemeIcon 
+            size="lg" 
+            variant="light" 
+            color={getRelationColor(edge.relation)}
+            radius="md"
+          >
+            <IconNetwork size={20} />
+          </ThemeIcon>
+        </Group>
+
+        <Stack gap="lg">
+          <Paper p="sm" radius="md" bg="var(--mantine-color-default-hover)">
+            <Group align="flex-start">
+              <ThemeIcon size="md" variant="light" color="blue">
+                <IconArticle size={16} />
+              </ThemeIcon>
+              <Box style={{ flex: 1 }}>
+                <Text size="sm" fw={500} color="dimmed">Dari Artikel:</Text>
+                <Box>
+                  {loading ? (
+                    <Skeleton height={20} width="100%" />
+                  ) : (
+                    <>
+                    <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                    <Text size="md" style={{ wordBreak: 'break-word' }}>
+                      {edgeNode?.from?.title}
+                    </Text>
+                    {edgeNode?.from?.id && onOpenNodeDetail && (
+                      <ThemeIcon
+                        size="sm"
+                        variant="light"
+                        color="gray"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => onOpenNodeDetail(edgeNode.from.id)}>
+                        <IconEye size={16} />
+                      </ThemeIcon>
+                    )}
+                    </Box>
+                    </>
+                  )}
+                </Box>
+              </Box>
+            </Group>
+          </Paper>
+
+          <Group justify="center">
+            <ThemeIcon 
+              size="md" 
+              variant="light" 
+              color={getRelationColor(edge.relation)}
+            >
+              <IconArrowDown size={16} />
+            </ThemeIcon>
+          </Group>
+
+          <Paper p="sm" radius="md" bg="var(--mantine-color-default-hover)">
+            <Group align="flex-start">
+              <ThemeIcon size="md" variant="light" color="blue">
+                <IconArticle size={16} />
+              </ThemeIcon>
+              <Box style={{ flex: 1 }}>
+                <Text size="sm" fw={500} color="dimmed">Ke Artikel:</Text>
+                <Box>
+                  {loading ? (
+                    <Skeleton height={20} width="100%" />
+                  ) : (
+                    <>
+                    <Box style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                    <Text size="md" style={{ wordBreak: 'break-word' }}>
+                      {edgeNode?.to?.title}
+                    </Text>
+                    {edgeNode?.to?.id && onOpenNodeDetail && (
+                      <ThemeIcon
+                        size="sm"
+                        variant="light"
+                        color="gray"
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => onOpenNodeDetail(edgeNode.to.id)}>
+                        <IconEye size={16} />
+                      </ThemeIcon>
+                    )}
+                    </Box>
+                    </>
+                  )}
+                </Box>
+              </Box>
+            </Group>
+          </Paper>
+        </Stack>
+      </Paper>
 
       {edge.label && (
-        <>
-          <h4 style={{ marginTop: '1rem' }}>Deskripsi Hubungan:</h4>
-          <Text size="sm" style={{ whiteSpace: 'pre-wrap' }}>{edge.label}</Text>
-        </>
+        <Paper p="md" radius="md" withBorder>
+          <Text size="sm" fw={500} color="dimmed" mb="xs">
+            Deskripsi Hubungan:
+          </Text>
+          <Text size="sm" style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+            {edge.label}
+          </Text>
+        </Paper>
       )}
-    </Modal>
+    </Stack>
   );
 }
