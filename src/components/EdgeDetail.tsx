@@ -8,19 +8,19 @@ import { IconArrowDown, IconNetwork, IconArticle, IconEye  } from '@tabler/icons
 interface EdgeDetailProps {
   edge: ExtendedEdge | null;
   onClose: () => void;
-  onOpenNodeDetail?:(nodeId:number) => void;
+  onOpenNodeDetail?:(nodeId:string) => void;
 };
 
 interface PopulatedEdge {
-  id: number;
+  id: string;
   label: string | null;
   relation: string | null;
   from: {
-    id: number;
+    id: string;
     title: string;
   };
   to: {
-    id: number;
+    id: string;
     title: string;
   };
 };
