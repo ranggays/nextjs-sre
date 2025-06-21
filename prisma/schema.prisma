@@ -9,122 +9,122 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
 }
 
 model Article {
-  id    Int  @id  @default(autoincrement()) 
-  title  String
-  filePath  String
+  id       String @id @default(uuid())
+  title    String
+  filePath String
   nodes    Node[]
   edges    Edge[]
 
   annotations Annotation[]
-  userId  Int?
-  user  User? @relation(fields: [userId], references:[id])
+  userId      String?
+  user        User?        @relation(fields: [userId], references: [id])
 
-  createdAt DateTime  @default(now())
-  updateAt  DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updateAt  DateTime @updatedAt
 }
 
 model Node {
-  id      Int @id @default(autoincrement())
-  label   String
-  title   String? // nullable
-  att_goal  String? // nullable
-  att_method  String? // nullable
-  att_background  String? // nullable
-  att_future  String? // nullable
-  att_gaps  String? // nullable
-  att_url  String? // nullable
-  type    String
-  content String
+  id             String  @id @default(uuid())
+  label          String
+  title          String? // nullable
+  att_goal       String? // nullable
+  att_method     String? // nullable
+  att_background String? // nullable
+  att_future     String? // nullable
+  att_gaps       String? // nullable
+  att_url        String? // nullable
+  type           String
+  content        String
 
-  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  articleId Int
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  articleId String
 
-  fromEdges Edge[]  @relation("EdgeFrom")
-  toEdges Edge[]  @relation("EdgeTo")
+  fromEdges Edge[] @relation("EdgeFrom")
+  toEdges   Edge[] @relation("EdgeTo")
 }
 
 model Edge {
-  id      Int  @id  @default(autoincrement())
-  fromId    Int 
-  toId      Int
-  relation  String?
-  label     String?
-  color     String?
+  id       String  @id @default(uuid())
+  fromId   String
+  toId     String
+  relation String?
+  label    String?
+  color    String?
 
-  from      Node  @relation("EdgeFrom" ,fields: [fromId], references: [id], onDelete: Cascade)
-  to      Node  @relation("EdgeTo", fields: [toId], references: [id], onDelete: Cascade)
+  from Node @relation("EdgeFrom", fields: [fromId], references: [id], onDelete: Cascade)
+  to   Node @relation("EdgeTo", fields: [toId], references: [id], onDelete: Cascade)
 
   article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
-  articleId  Int
+  articleId String
 
   @@unique([fromId, toId, relation])
 }
 
 model Analytics {
-  id  Int  @id @default(autoincrement())
-  action  String
+  id        Int      @id @default(autoincrement())
+  action    String
   document  String?
-  userId  String?
+  userId    String?
   metadata  Json?
   timestamp DateTime @default(now())
 
   @@map("analytics")
 }
 
-enum Role{
+enum Role {
   USER
   ADMIN
 }
 
 model User {
-  id  Int @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String?
   password  String
-  role  Role  @default(USER)
-  createdAt DateTime  @default(now())
-  updateAt  DateTime  @updatedAt
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updateAt  DateTime @updatedAt
 
-  articles  Article[]
-  drafts  Draft[]
+  articles    Article[]
+  drafts      Draft[]
   annotations Annotation[]
 }
 
 model Draft {
-  id  Int @id @default(autoincrement())
-  userId  Int?
-  user  User? @relation(fields: [userId], references: [id])
-  title String
+  id        String         @id @default(uuid())
+  userId    String?
+  user      User?          @relation(fields: [userId], references: [id])
+  title     String
   sections  DraftSection[]
-  createdAt DateTime  @default(now())
+  createdAt DateTime       @default(now())
 }
 
 model DraftSection {
-  id  Int @id @default(autoincrement())
-  draftId Int
-  draft Draft @relation(fields: [draftId], references: [id], onDelete: Cascade)
-  title String
-  content String
+  id          String       @id @default(uuid())
+  draftId     String
+  draft       Draft        @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  title       String
+  content     String
   annotations Annotation[]
 }
 
 model Annotation {
-  id  Int @id @default(autoincrement())
-  userId Int? 
-  user User?  @relation(fields: [userId], references: [id])
-  articleId  Int?
-  article Article? @relation(fields: [articleId], references: [id])
-  page  Int
+  id              String        @id @default(uuid())
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  articleId       String?
+  article         Article?      @relation(fields: [articleId], references: [id])
+  page            Int
   highlightedText String
-  comment String
-  semanticTag String?
-  draftSectionId  Int?
-  draftSection  DraftSection? @relation(fields: [draftSectionId], references: [id])
-  createdAt DateTime  @default(now())
+  comment         String
+  semanticTag     String?
+  draftSectionId  String?
+  draftSection    DraftSection? @relation(fields: [draftSectionId], references: [id])
+  createdAt       DateTime      @default(now())
 }
