@@ -380,6 +380,7 @@ export default function Home() {
                       <Checkbox
                         key={relation}
                         value={relation}
+                        color={color}
                         label={
                           <Group gap="xs">
                             <Badge variant="dot" color={color} size="sm">
