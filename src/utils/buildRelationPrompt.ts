@@ -1,5 +1,5 @@
 interface Node {
-  id: number;
+  id: string;
   label: string;
   title: string | null;
   att_goal: string | null;
