@@ -7,7 +7,7 @@ import { notifications } from '@mantine/notifications';
 import { modals } from '@mantine/modals';
 import Link from "next/link";
 import { useCallback, useEffect, useState, useRef } from "react"
-import WebViewer from "@/components/PDFViewer";
+import WebViewer from "@/components/WebViewer";
 import { handleAnalytics } from "@/components/NodeDetail";
 import Loading from "../Loading";
 
@@ -354,6 +354,9 @@ export default function Article(){
             } else {
                 throw new Error('gagal delete annotation');
             }
+
+            await getAnnotations();
+            
         } catch (error: any) {
             console.error('Gagal fetch delete annotation :', error?.message );
             notifications.show({
@@ -502,54 +505,37 @@ export default function Article(){
         <Modal
             opened={opened}
             onClose={() => {
-                setOpened(false); 
-                setSelectedPDF(null)
+                setOpened(false);
+                setSelectedPDF(null);
             }}
             title="Lihat Artikel"
             size="90%"
-            padding='sm'
+            padding="sm"
             centered
-            overlayProps={{ blur: 3, style: {
-                padding: '1.5rem'
-            }}}
+            overlayProps={{ blur: 3 }}
             styles={{
                 content: {
-                    height: '90vh',
-                    maxHeight: '90vh',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    padding: 0,
+                height: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: 0,
+                position: 'relative', // ✅ WAJIB
                 },
                 body: {
-                    // height: 'calc(100% - 60px)',
-                    // overflow: 'hidden',
-                    flex: 1,
-                    padding: 0,
-                    display: 'flex',
-                    overflow: 'auto',
-                    flexDirection: 'column',
+                flex: 1,
+                overflow: 'hidden',
+                padding: 0,
+                position: 'relative', // ✅ WAJIB
                 },
-                header: {
-                    padding: '1rem',
-                    position: 'sticky',
-                    top: 0,
-                    zIndex: 10,
-                    // backgroundColor: theme.colors.gray[0],
-                }
-        }}>
-                {selectedPDF && (
-                    <WebViewer
-                        key={selectedPDF}
-                        fileUrl={selectedPDF}
-                        path="/lib/webviewer"
-                        initialDoc={selectedPDF}
-                        licenseKey={process.env.LICENSE_KEY_PDF}
-                        onAnalytics={handleAnalytics}
-                        >
-
-                        </WebViewer>
-                )}
+            }}
+            >
+            {selectedPDF && (
+                <div style={{ height: '100%', position: 'relative' }}>
+                <WebViewer fileUrl={selectedPDF} onAnalytics={handleAnalytics} />
+                </div>
+            )}
         </Modal>
+
         <Modal
             opened={showHistory}
             onClose={() => setShowHistory(false)}
