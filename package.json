@@ -3,9 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "copy-webviewer": "node copy-webviewer.js",
-    "dev": "npm run copy-webviewer && next dev --turbopack",
-    "build": "npm run copy-webviewer && next build",
+    "dev": "next dev --turbopack",
+    "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -42,6 +41,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
+    "react-pdf-highlighter": "^8.0.0-rc.0",
     "remark-gfm": "^4.0.1",
     "vis-data": "^7.1.9",
     "vis-network": "^9.1.10"
