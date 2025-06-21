@@ -116,9 +116,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
           att_url: publicUrl,
         };
 
-        console.log("🧪 Akan membuat article dengan title:", title);
-console.log("🧪 publicUrl:", publicUrl);
-
         // Simpan artikel dulu
         const article = await prisma.article.create({
           data: {
@@ -127,9 +124,6 @@ console.log("🧪 publicUrl:", publicUrl);
             // createdAt: new Date(),
           },
         });
-
-        console.log("✅ Type of article.id", typeof article.id); // Harus 'string'
-console.log("✅ Value of article.id", article.id);
         
         // Simpan node terkait article
         const node = await prisma.node.create({
