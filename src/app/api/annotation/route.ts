@@ -12,13 +12,27 @@ export async function POST(req: NextRequest) {
     };
 
     try {
-        const article = await prisma.node.findFirst({
+        const nodeWithUrl = await prisma.node.findFirst({
             where: { att_url: document},
+            select: {
+                id: true,
+                title: true,
+                att_url: true,
+                article: {
+                    select: {
+                        id: true,
+                        title: true,
+                        filePath: true,
+                    }
+                }
+            }
         });
 
-        if (!article){
+        if (!nodeWithUrl){
             return NextResponse.json({message: `Article / Node not found for URL: ${document}`});
         };
+
+        const article = nodeWithUrl.article;
 
         const newAnnotation = await prisma.annotation.create({
             data: {
@@ -26,6 +40,15 @@ export async function POST(req: NextRequest) {
                 page: metadata.pageNumber,
                 highlightedText: metadata.highlightedText || '',
                 comment: metadata.contents || '',
+            },
+            include: {
+                article: {
+                    select: {
+                        id: true,
+                        title: true,
+                        filePath: true,
+                    }
+                }
             }
         });
 
