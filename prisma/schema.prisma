@@ -25,6 +25,9 @@ model Article {
   userId      String?
   user        User?        @relation(fields: [userId], references: [id])
 
+  sessionId String?
+  session BrainstormingSession? @relation(fields:[sessionId], references:[id], onDelete: Cascade)
+
   createdAt DateTime @default(now())
   updateAt  DateTime @updatedAt
 }
@@ -94,6 +97,8 @@ model User {
   articles    Article[]
   drafts      Draft[]
   annotations Annotation[]
+
+  brainstormingSession  BrainstormingSession[]
 }
 
 model Draft {
@@ -127,4 +132,42 @@ model Annotation {
   draftSectionId  String?
   draftSection    DraftSection? @relation(fields: [draftSectionId], references: [id])
   createdAt       DateTime      @default(now())
+}
+
+model BrainstormingSession {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  coverColor  String  @default("#4c6ef5")
+
+  // Relasi
+  articles       Article[]
+  chatMessages   ChatMessage[]
+
+  // UI State (opsional tapi penting untuk UX)
+  selectedFilterArticles String[] @default([]) // << Tambahan ini
+  lastSelectedNodeId     String?
+  lastSelectedEdgeId     String?
+  graphFilters           Json?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  lastActivity DateTime @default(now())
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  sessionId String
+  session   BrainstormingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  content   String
+  role      String   // 'user' | 'assistant'
+
+  // Optional: node/edge yang sedang dipilih saat chat
+  contextNodeIds String[] @default([])
+  contextEdgeIds String[] @default([])
+
+  createdAt DateTime @default(now())
 }
