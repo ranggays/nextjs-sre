@@ -6,19 +6,17 @@ export async function DELETE(req: NextRequest, {params} : {
 }){
     const { id: idParam } = await params;
 
-    const id = Number(idParam);
-
     await prisma.annotation.deleteMany({
         where: {
-            articleId: id
+            articleId: idParam,
         }
     });
 
-    await prisma.article.delete({
+    await prisma.node.delete({
         where: {
-            id: id
+            id: idParam,
         }
     });
 
-    return NextResponse.json({msg : 'Article Deleteded Succes', id}, {status: 200});
+    return NextResponse.json({msg : 'Article Deleteded Succes', idParam}, {status: 200});
 }
