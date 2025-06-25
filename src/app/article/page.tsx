@@ -12,22 +12,22 @@ import { handleAnalytics } from "@/components/NodeDetail";
 import Loading from "../Loading";
 
 interface Article {
-    id: number,
+    id: string,
     title: string,
     att_background: string,
     att_url: string,
 };
 
 interface Annotation {
-    id: number,
-    articleId: number,
+    id: string,
+    articleId: string,
     page: number,
     highlightedText: string,
     comment: string,
     semanticTag?: string,
     createdAt: string,
     article: {
-        id: number,
+        id: string,
         title: string,
     },
 };
@@ -42,7 +42,7 @@ export default function Article(){
     const [article, setArticle] = useState<Article[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [uploading, setUploading] = useState(false);
-    const [deletingArticleId, setDeletingArticleId] = useState<number | null>(null);
+    const [deletingArticleId, setDeletingArticleId] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [opened, setOpened] = useState(false);
@@ -117,7 +117,7 @@ export default function Article(){
 
     console.log('artikel :', article);
 
-    const handleDeleteArticle = async (id: number, title: string) => {
+    const handleDeleteArticle = async (id: string, title: string) => {
         modals.openConfirmModal({
             title: (
                 <Text size="lg" fw={600} c="red">
@@ -163,7 +163,7 @@ export default function Article(){
         });
     };
 
-    const performDeleteArticle = async (id: number, title: string) => {
+    const performDeleteArticle = async (id: string, title: string) => {
         setDeletingArticleId(id);
 
         try {
@@ -287,7 +287,7 @@ export default function Article(){
     );
 
 
-        const handleDeleteAnnotations = async (id: number, highlightedText: string) => {
+        const handleDeleteAnnotations = async (id: string, highlightedText: string) => {
         modals.openConfirmModal({
             title: (
                 <Text size="lg" fw={600} c="red">
@@ -334,7 +334,7 @@ export default function Article(){
     };
 
 
-    const performDeleteAnnotations = async (id: number) => {
+    const performDeleteAnnotations = async (id: string) => {
         try {            
             setLoadingDeleteAnnotations(true);
             const res = await fetch(`/api/annotation/${id}`, {
@@ -375,9 +375,9 @@ export default function Article(){
         sidebarOpened={sidebarOpened}
         onToggleSidebar={handleToogleSidebar}
         mounted={mounted}
-        chatHistory={chatHistory}
-        onChatSelect={handleChatSelect}
-        onNewChat={handleNewChat}
+        // chatHistory={chatHistory}
+        // onChatSelect={handleChatSelect}
+        // onNewChat={handleNewChat}
     >
         <Container h='100%' p='xl' style={{
             display: 'flex',

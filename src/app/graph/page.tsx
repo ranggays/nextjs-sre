@@ -1,4 +1,4 @@
-// src/app/page.tsx
+// src/app/graph/page.tsx
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
@@ -300,9 +300,9 @@ export default function Home() {
         sidebarOpened={false}
         onToggleSidebar={() => {}}
         mounted={false}
-        chatHistory={chatHistory}
-        onChatSelect={handleChatSelect}
-        onNewChat={handleNewChat}
+        // chatHistory={chatHistory}
+        // onChatSelect={handleChatSelect}
+        // onNewChat={handleNewChat}
       >
         <Container fluid h="100%" p="xl">
           <Text>Loading...</Text>
@@ -316,9 +316,9 @@ export default function Home() {
       sidebarOpened={sidebarOpened}
       onToggleSidebar={handleToggleSidebar}
       mounted={mounted}
-      chatHistory={chatHistory}
-      onChatSelect={handleChatSelect}
-      onNewChat={handleNewChat}
+      // chatHistory={chatHistory}
+      // onChatSelect={handleChatSelect}
+      // onNewChat={handleNewChat}
     >
       <Container fluid h="100%" p="xl">
         <Grid gutter="xl" h="100%">
