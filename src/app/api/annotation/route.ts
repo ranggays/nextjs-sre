@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
     
+    const supabase = await createServerSupabaseClient();
+    const { data: {user}, error} = await supabase.auth.getUser();
+    if (!user) {
+        return NextResponse.json({message: 'Unauthorized'}, {status: 401});
+    }
+
     const body = await req.json();
     const metadata = body?.metadata;
     const document = body?.document;
@@ -23,7 +30,7 @@ export async function POST(req: NextRequest) {
                         id: true,
                         title: true,
                         filePath: true,
-                    }
+                    },
                 }
             }
         });
@@ -40,6 +47,7 @@ export async function POST(req: NextRequest) {
                 page: metadata.pageNumber,
                 highlightedText: metadata.highlightedText || '',
                 comment: metadata.contents || '',
+                userId: user.id,
             },
             include: {
                 article: {
@@ -60,9 +68,23 @@ export async function POST(req: NextRequest) {
 
 };
 
-export async function GET(){
+export async function GET(req: NextRequest){
+
+    const searchParams = req.nextUrl.searchParams;
+    const sessionId = searchParams.get("sessionId");
+    const supabase = await createServerSupabaseClient();
+    const { data: {user}, error} = await supabase.auth.getUser();
+    if (!user) {
+        return NextResponse.json({message: 'Unauthorized'}, {status: 401});
+    }
+
     try {
         const annotations = await prisma.annotation.findMany({
+            where: {
+                article: {
+                    sessionId: sessionId,
+                }
+            },
             include: {
                 article: {
                     select: {
