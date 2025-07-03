@@ -47,7 +47,7 @@ export async function syncUserWithPrisma(supabaseUser: User) {
       
       const needsUpdate = 
         prismaUser.email !== supabaseUser.email ||
-        prismaUser.name !== (supabaseUser.user_metadata?.name || supabaseUser.email.split('@')[0])
+        prismaUser.name !== (supabaseUser.user_metadata?.name || supabaseUser.email.split('@')[0]) || prismaUser.id !== supabaseUser.id
 
       if (needsUpdate) {
         console.log('Updating user in Prisma...')
@@ -56,6 +56,7 @@ export async function syncUserWithPrisma(supabaseUser: User) {
           data: {
             email: supabaseUser.email,
             name: supabaseUser.user_metadata?.name || supabaseUser.email.split('@')[0],
+            id: supabaseUser.id,
           }
         })
         console.log('User updated in Prisma:', prismaUser.id)
