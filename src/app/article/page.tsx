@@ -519,13 +519,13 @@ export default function Article(){
                 display: 'flex',
                 flexDirection: 'column',
                 padding: 0,
-                position: 'relative', // ✅ WAJIB
+                position: 'relative', 
                 },
                 body: {
                 flex: 1,
                 overflow: 'hidden',
                 padding: 0,
-                position: 'relative', // ✅ WAJIB
+                position: 'relative', 
                 },
             }}
             >

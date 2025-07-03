@@ -64,7 +64,6 @@ const WebViewer: React.FC<WebViewerProps> = ({ fileUrl, onAnalytics }) => {
 
     setHighlights((prev) => [newHighlight, ...prev]);
 
-    // ✅ Ambil teks yang benar-benar ditandai
     const highlightedText =
       typeof highlight.content === 'string'
         ? highlight.content
@@ -212,7 +211,6 @@ const WebViewer: React.FC<WebViewerProps> = ({ fileUrl, onAnalytics }) => {
             </PdfLoader>
         </div>
 
-        {/* Kanan: Sidebar highlights */}
         <div
             style={{
             flex: 1,
