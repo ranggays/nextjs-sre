@@ -64,9 +64,11 @@ import ChatPanel from '../../../components/ChatPanel';
 import NodeDetail from '../../../components/NodeDetail';
 import EdgeDetail from '../../../components/EdgeDetail';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { notifications } from '@mantine/notifications';
 import dynamic from 'next/dynamic';
+import { resolve } from 'path';
+import Neo2 from '@/components/Neo2';
 
 const Neograph = dynamic(() => import('@/components/NeoGraph'), {
     ssr: false,
@@ -124,6 +126,9 @@ export default function Home() {
   const sessionId = Array.isArray(rawSessionId) ? rawSessionId[0] : rawSessionId;
 
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const fullPath = `${pathname}?${searchParams.toString()}`;
 
   const { colorScheme, toggleColorScheme } = useMantineColorScheme();
   const theme = useMantineTheme();
@@ -158,6 +163,239 @@ export default function Home() {
 
   // Tambahan dropdown graph
   const [graph, setGraph] = useState<'visjs' | 'neovisjs'>('visjs');
+  const [neo4jData, setNeo4jData] = useState<{nodes: any[], edges: any[]}>({nodes: [], edges: []});
+  const [graphKey, setGraphKey] = useState(0);
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [previousGraph, setPreviousGraph] = useState<'visjs' | 'neovisjs'>('visjs');
+
+  const fetchNeo4jData = async () => {
+    try {
+      const articleIdsParam = activeArticles.length > 0 ? `&articleIds=${activeArticles.join(',')}` : '';
+      const res = await fetch(`/api/neo4j/query?sessionId=${sessionId}${articleIdsParam}`);
+
+      if (res.ok){
+        const data = await res.json();
+        setNeo4jData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching Neo4j data:', error);
+    }
+  };
+
+  // Effect untuk fetch Neo4j data ketika filter berubah
+  useEffect(() => {
+    if (graph === 'neovisjs' && sessionId && !isLoadingSession && !isLoadingData) {
+      fetchNeo4jData();
+    }
+  }, [graph, activeArticles, sessionId, isLoadingSession, isLoadingData]);
+
+  const cleanupNavigationButtons = useCallback(() => {
+  // Cleanup semua tombol navigasi yang mungkin tertinggal
+  const navigationSelectors = [
+    // NeoVis navigation buttons
+    '.neovis-navigation',
+    '.neovis-controls',
+    '.neovis-toolbar',
+    // Generic navigation buttons yang sering digunakan library graph
+    '[class*="navigation"]',
+    '[class*="control"]',
+    '[class*="toolbar"]',
+    '[class*="zoom"]',
+    '[class*="pan"]',
+    // Specific button types
+    'button[title*="zoom"]',
+    'button[title*="pan"]',
+    'button[title*="fit"]',
+    'button[title*="center"]',
+    // SVG controls yang sering digunakan untuk navigasi
+    'svg[class*="control"]',
+    'svg[class*="navigation"]',
+    // Generic floating buttons
+    '.floating-button',
+    '.graph-controls',
+    // Buttons dengan style position absolute/fixed yang mungkin floating
+    'button[style*="position: absolute"]',
+    'button[style*="position: fixed"]',
+    'div[style*="position: absolute"][style*="button"]',
+    'div[style*="position: fixed"][style*="button"]'
+  ];
+
+  navigationSelectors.forEach(selector => {
+    try {
+      const elements = document.querySelectorAll(selector);
+      elements.forEach(el => {
+        // Check if element is actually a navigation button
+        const isNavButton = el.textContent?.includes('→') || 
+                           el.textContent?.includes('↓') || 
+                           el.textContent?.includes('-') ||
+                           el.textContent?.includes('+') ||
+                           el.getAttribute('title')?.toLowerCase().includes('zoom') ||
+                           el.getAttribute('title')?.toLowerCase().includes('pan') ||
+                           el.getAttribute('aria-label')?.toLowerCase().includes('navigation');
+        
+        if (isNavButton || selector.includes('navigation') || selector.includes('control')) {
+          el.remove();
+        }
+      });
+    } catch (e) {
+      console.warn(`Could not clean selector: ${selector}`, e);
+    }
+  });
+
+  // Cleanup berdasarkan content text (untuk tombol dengan simbol)
+  const allButtons = document.querySelectorAll('button, div[role="button"], span[role="button"]');
+  allButtons.forEach(button => {
+    const text = button.textContent?.trim();
+    const title = button.getAttribute('title');
+    const ariaLabel = button.getAttribute('aria-label');
+    
+    // Check for navigation symbols atau keywords
+    const navigationPatterns = [
+      '→', '←', '↑', '↓', // Arrow symbols
+      '⊕', '⊖', // Plus/minus in circle
+      '🔍', '🔎', // Magnifying glass
+      '+', '-', // Simple plus minus
+      'zoom', 'pan', 'fit', 'center', 'reset' // Keywords
+    ];
+    
+    const isNavigationButton = navigationPatterns.some(pattern => 
+      text?.includes(pattern) || 
+      title?.toLowerCase().includes(pattern.toLowerCase()) ||
+      ariaLabel?.toLowerCase().includes(pattern.toLowerCase())
+    );
+    
+    if (isNavigationButton) {
+      // Double check it's not part of our main UI
+      const isPartOfMainUI = button.closest('.mantine-Card-root') || 
+                            button.closest('.mantine-Grid-col') ||
+                            button.closest('[data-mantine-component]');
+      
+      if (!isPartOfMainUI) {
+        button.remove();
+      }
+    }
+  });
+
+  
+    const cleanupAttempts = [100, 300, 500, 1000];
+
+    cleanupAttempts.forEach(delay => {
+      setTimeout(() => {
+
+      }, delay)
+    });
+
+  return () => {
+    cleanupNavigationButtons();
+
+    if (graphContainerRef.current){
+      graphContainerRef.current.innerHTML = '';
+    }
+
+    const neoElements = document.querySelectorAll('[id*="neo"], [class*="neo"], [data-neo]');
+    neoElements.forEach(el => el.remove());
+  }
+
+  }, []);
+
+  useEffect(() => {
+    cleanupNavigationButtons();
+  }, [router, cleanupNavigationButtons]);
+
+  const handleGraphTypeChange = useCallback(async (newGraphType: 'visjs' | 'neovisjs') => {
+    setIsCleaningUp(true);
+    setPreviousGraph(graph);
+
+    if (graphContainerRef.current){
+      const container = graphContainerRef.current;
+      const clonedContainer = container.cloneNode(false) as HTMLDivElement;
+      container.parentNode?.replaceChild(clonedContainer, container);
+      graphContainerRef.current = clonedContainer;
+    }
+
+    setSelectedNode(null);
+    setSelectedEdge(null);
+
+    if (newGraphType === 'visjs' && newGraphType === 'visjs'){
+      setNeo4jData({nodes: [], edges: []});
+
+      // Multiple cleanup attempts dengan delay
+      const cleanupAttempts = [50, 150, 300, 500];
+      
+      cleanupAttempts.forEach(delay => {
+        setTimeout(() => {
+          cleanupNavigationButtons();
+          
+          // Additional cleanup for persistent elements
+          const persistentElements = document.querySelectorAll(
+            '[class*="neo"], [id*="neo"], [data-*="neo"], ' +
+            '.vis-navigation, .vis-button, .vis-up, .vis-down, .vis-left, .vis-right, .vis-zoomIn, .vis-zoomOut, .vis-zoomExtends'
+          );
+          
+          persistentElements.forEach(el => {
+            try {
+              el.remove();
+            } catch (e) {
+              // Element might already be removed
+            }
+          });
+          
+          // Force remove any remaining floating buttons outside our container
+          const floatingButtons = document.querySelectorAll('body > button, body > div > button');
+          floatingButtons.forEach(button => {
+            const rect = button.getBoundingClientRect();
+            // If button is small and positioned like a navigation control
+            if (rect.width < 50 && rect.height < 50) {
+              const isPartOfMainUI = button.closest('.mantine-AppShell-root') !== null;
+              if (!isPartOfMainUI) {
+                button.remove();
+              }
+            }
+          });
+        }, delay);
+      });
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 150))
+
+    setGraph(newGraphType);
+    setGraphKey(prev => prev + 1);
+
+    if (newGraphType === 'visjs'){
+      setIsLoadingData(false);
+    }
+
+    setTimeout(() => {
+      cleanupNavigationButtons();
+      setIsCleaningUp(false);
+    }, 200);
+  }, [graph, cleanupNavigationButtons]);
+
+  useEffect(() => {
+  return () => {
+    // Cleanup saat component unmount
+    if (graphContainerRef.current) {
+      graphContainerRef.current.innerHTML = '';
+    }
+    
+    // Clear any remaining Neo4j elements
+    const neoElements = document.querySelectorAll('[id*="neo"], [class*="neo"], [data-neo]');
+    neoElements.forEach(el => el.remove());
+  };
+}, []);
+
+  useEffect(() => {
+    // Hanya jalankan cleanup jika sedang di vis.js tapi pernah menggunakan neovisjs
+    if (graph === 'visjs' && previousGraph === 'neovisjs') {
+      const timeoutId = setTimeout(() => {
+        cleanupNavigationButtons();
+      }, 300); // Delay untuk memastikan render selesai
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [activeRelations, activeArticles, graph, previousGraph, cleanupNavigationButtons]);
 
   const handleToggleSidebar = useCallback(() => {
     setSidebarOpened((o) => !o);
@@ -171,7 +409,7 @@ export default function Home() {
     console.log('New chat clicked');
   }, []);
 
-  // ✅ PERBAIKAN: Filter logic yang lebih robust
+  //PERBAIKAN: Filter logic yang lebih robust
   const filteredNodes = useMemo(() => {
     // Jika masih loading, return empty array
     if (isLoadingSession || isLoadingData) return [];
@@ -200,6 +438,111 @@ export default function Home() {
       return matchRelation && matchNodes;
     });
   }, [activeRelations, edges, filteredNodes, isLoadingSession, isLoadingData]);
+
+    // Tambahkan useEffect khusus untuk monitoring perubahan filtered nodes/edges
+  useEffect(() => {
+    if (graph === 'visjs' && previousGraph === 'neovisjs' && (filteredNodes.length > 0 || filteredEdges.length > 0)) {
+      // Cleanup setelah data ter-filter
+      const cleanupTimeout = setTimeout(() => {
+        cleanupNavigationButtons();
+      }, 100);
+
+      return () => clearTimeout(cleanupTimeout);
+    }
+  }, [filteredNodes, filteredEdges, graph, previousGraph, cleanupNavigationButtons]);
+
+  // Enhance MutationObserver untuk lebih agresif
+  useEffect(() => {
+    if (graph === 'visjs' && previousGraph === 'neovisjs') {
+      const observer = new MutationObserver((mutations) => {
+        let shouldCleanup = false;
+        
+        mutations.forEach((mutation) => {
+          mutation.addedNodes.forEach((node) => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as Element;
+              
+              // Check berbagai jenis elemen yang bisa jadi navigation button
+              const tagName = element.tagName.toLowerCase();
+              const isButton = tagName === 'button' || 
+                            element.getAttribute('role') === 'button' ||
+                            tagName === 'div' && element.tagName === 'pointer';
+              
+              if (isButton) {
+                const text = element.textContent?.trim();
+                const className = element.className;
+                const id = element.id;
+                
+                // Deteksi navigation button patterns
+                const isNavButton = ['→', '←', '↑', '↓', '+', '-', '⊕', '⊖'].some(symbol => text?.includes(symbol)) ||
+                                  className.includes('nav') ||
+                                  className.includes('control') ||
+                                  className.includes('zoom') ||
+                                  className.includes('pan') ||
+                                  id.includes('nav') ||
+                                  id.includes('control');
+                
+                if (isNavButton) {
+                  const isPartOfMainUI = element.closest('.mantine-Card-root') || 
+                                      element.closest('.mantine-Grid-col') ||
+                                      element.closest('[data-mantine-component]');
+                  
+                  if (!isPartOfMainUI) {
+                    shouldCleanup = true;
+                  }
+                }
+              }
+            }
+          });
+        });
+
+        if (shouldCleanup) {
+          // Delay cleanup sedikit untuk menghindari race condition
+          setTimeout(() => {
+            cleanupNavigationButtons();
+          }, 50);
+        }
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: false,
+        attributeOldValue: false
+      });
+
+      return () => observer.disconnect();
+    }
+  }, [graph, previousGraph, cleanupNavigationButtons]);
+
+  // Tambahkan cleanup pada setiap perubahan checkbox relasi
+  const handleRelationChange = useCallback((relation: string, checked: boolean) => {
+    if (checked) {
+      setActiveRelations([...activeRelations, relation]);
+    } else {
+      setActiveRelations(activeRelations.filter(r => r !== relation));
+    }
+    
+    // Cleanup buttons setelah relasi berubah jika sebelumnya menggunakan neovisjs
+    if (graph === 'visjs' && previousGraph === 'neovisjs') {
+      setTimeout(() => {
+        cleanupNavigationButtons();
+      }, 200);
+    }
+  }, [activeRelations, graph, previousGraph, cleanupNavigationButtons]);
+
+  // Tambahkan cleanup saat MultiSelect artikel berubah
+  const handleArticleSelectionChange = useCallback((selectedArticles: string[]) => {
+    setActiveArticles(selectedArticles);
+    setSelectedNode(null);
+    
+    // Cleanup buttons setelah artikel selection berubah
+    if (graph === 'visjs' && previousGraph === 'neovisjs') {
+      setTimeout(() => {
+        cleanupNavigationButtons();
+      }, 200);
+    }
+  }, [graph, previousGraph, cleanupNavigationButtons]);
 
   //PERBAIKAN: Fetch data function
   const fetchData = async () => {
@@ -241,7 +584,7 @@ export default function Home() {
     }
   };
   
-  // ✅ PERBAIKAN: Load session function
+  //PERBAIKAN: Load session function
   const loadSession = async () => {
     if (!sessionId) return;
     
@@ -265,7 +608,7 @@ export default function Home() {
     }
   };
 
-  // ✅ PERBAIKAN: Load data dan session secara paralel
+  //PERBAIKAN: Load data dan session secara paralel
   useEffect(() => {
     if (!sessionId) return;
     
@@ -279,7 +622,7 @@ export default function Home() {
     initializeData();
   }, [sessionId]);
 
-  // ✅ PERBAIKAN: Debounced save untuk menghindari terlalu banyak request
+  //PERBAIKAN: Debounced save untuk menghindari terlalu banyak request
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   useEffect(() => {
@@ -388,7 +731,7 @@ export default function Home() {
         color: 'green',
       });
 
-      // ✅ PERBAIKAN: Refresh data setelah upload
+      //PERBAIKAN: Refresh data setelah upload
       await fetchData();
 
     } catch (error: any) {
@@ -404,7 +747,7 @@ export default function Home() {
     }
   };
 
-  // ✅ PERBAIKAN: Loading state yang lebih informatif
+  //PERBAIKAN: Loading state yang lebih informatif
   if (!mounted || isLoadingSession || isLoadingData) {
     return (
       <DashboardLayout
@@ -516,13 +859,14 @@ export default function Home() {
                   }
                   placeholder="Cari dan pilih artikel untuk divisualisasikan..."
                   value={activeArticles}
-                  onChange={(e) => {
-                    setActiveArticles(e);
-                    setSelectedNode(null);
-                  }}
+                  onChange={
+                    handleArticleSelectionChange
+                    // setActiveArticles(e);
+                    // setSelectedNode(null);
+                  }
                   data={nodes.map((node) => ({
                     value: String(node.id) || '',
-                    label: node.title || node.label || `Artikel ${node.id}`, // ✅ PERBAIKAN: Fallback yang lebih baik
+                    label: node.title || node.label || `Artikel ${node.id}`, // PERBAIKAN: Fallback yang lebih baik
                   }))}
                   searchable
                   clearable
@@ -548,13 +892,17 @@ export default function Home() {
                           </Group>
                         }
                         checked={activeRelations.includes(relation)}
-                        onChange={(event) => {
+                        onChange={(event) => 
+                          handleRelationChange(relation, event.currentTarget.checked)
+                          /*
                           if (event.currentTarget.checked) {
                             setActiveRelations([...activeRelations, relation]);
                           } else {
                             setActiveRelations(activeRelations.filter(r => r !== relation));
                           }
-                        }}
+                            */
+                           
+                        }
                         styles={{
                           input: { cursor: 'pointer' },
                           label: { cursor: 'pointer' }
@@ -582,12 +930,66 @@ export default function Home() {
                     : theme.colors.gray[0]
                 }}
               >
-                <NetworkGraph
+                {/* Dropdown di pojok kiri atas */}
+                <Box style={{
+                  width: '100%',
+                  height: '100%',
+                  position: 'relative',
+                }}>
+                <Box
+                  style={{
+                    position: 'absolute',
+                    top: 12,
+                    left: 12,
+                    zIndex: 10,
+                    minWidth: 120
+                  }}
+                >
+                  <Select
+                    value={graph}
+                    onChange={(value) => {
+                      if (value) {
+                        handleGraphTypeChange(value as 'visjs' | 'neovisjs');
+                      }}
+                    }
+                    data={[
+                      { value: 'visjs', label: 'Vis.js' },
+                      { value: 'neovisjs', label: 'Neo4j' },
+                    ]}
+                    size="sm"
+                    radius="md"
+                    withCheckIcon={false}
+                    styles={{
+                      input: {
+                        backgroundColor: dark ? theme.colors.dark[6] : 'white',
+                        border: `1px solid ${dark ? theme.colors.dark[4] : theme.colors.gray[3]}`,
+                        fontSize: theme.fontSizes.sm,
+                      }
+                    }}
+                  />
+                </Box>
+
+                {/* Graph Container */}
+                <Box style={{ width: '100%', height: '100%' }}>
+                  {graph === 'visjs' ? (
+                    <NetworkGraph
+                      nodes={filteredNodes}
+                      edges={filteredEdges}
+                      onNodeClick={handleNodeClick}
+                      onEdgeClick={handleEdgeClick}
+                      // key={`visjs-${graphKey}-${filteredNodes.length}-${filteredEdges.length}`}
+                      key ={`${fullPath}-visjs-${graphKey}`}
+                    />
+                  ) : <Neograph relationFilters={activeArticles} sessionId={sessionId!} onNodeClick={handleNodeClick} onEdgeClick={handleEdgeClick} key={`neograph-${graphKey}-${activeArticles.join(',')}`}/>
+                  }
+                </Box>
+                </Box>
+                {/* <NetworkGraph
                   nodes={filteredNodes}
                   edges={filteredEdges}
                   onNodeClick={handleNodeClick}
                   onEdgeClick={handleEdgeClick}
-                />
+                /> */}
               </Paper>
             </Card>
           </Grid.Col>
