@@ -12,9 +12,13 @@ export async function DELETE(req: NextRequest, {params} : {
         }
     });
 
-    await prisma.node.delete({
+    await prisma.article.delete({
         where: {
             id: idParam,
+        },
+        include: {
+            nodes: true,
+            edges: true,
         }
     });
 
