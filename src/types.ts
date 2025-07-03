@@ -12,7 +12,7 @@ export interface ExtendedNode extends Node {
 }
 
 export interface ExtendedEdge extends Edge {
-  id?: number;
+  id?: string;
   relation?: string;
   label?: string;
   color?: {
@@ -20,5 +20,16 @@ export interface ExtendedEdge extends Edge {
     highlight?: string;
     hover?: string;
     opacity?: number;
-  }
+  };
+  fromTitle?: string;
+  toTitle?: string;
+  properties?: {
+    description?: string;
+    weight?: number;
+    explanation?: string;
+    similarity?: string;
+    keywords?: string;
+    type?: string;
+  };
+  displayDescription?: string;
 }
