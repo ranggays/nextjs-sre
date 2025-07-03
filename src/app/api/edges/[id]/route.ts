@@ -25,6 +25,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // console.log('Converted ID to number:', id);
 
+    if (idParam.includes('-')){
+      const [fromId, toId, type] = idParam.split('-');
+      const edge = await prisma.edge.findFirst({
+        where: {
+          fromId,
+          toId,
+        },
+        include: {
+          from: true,
+          to: true,
+        }
+      });
+
+      if (edge) return NextResponse.json(edge);
+    }
+
     const edge = await prisma.edge.findUnique({
       where: { id: idParam },
       include: {
