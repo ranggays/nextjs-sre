@@ -235,9 +235,9 @@ export function DashboardNavbar({
                     {session.lastActivity}
                   </Text>
                 </Box>
-                <ActionIcon variant="subtle" color="gray" size="sm" onClick={(e) => e.stopPropagation()}>
+                {/* <ActionIcon variant="subtle" color="gray" size="sm" onClick={(e) => e.stopPropagation()}>
                   <IconDots size={14} />
-                </ActionIcon>
+                </ActionIcon> */}
               </Group>
             )}
           </Paper>
