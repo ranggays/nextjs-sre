@@ -1,172 +1,221 @@
-// components/NeoGraph.tsx
+// components/NeoGraph.tsx (Fixed version)
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Box, Text, Loader, Stack } from '@mantine/core';
-
-// Dinamically import neovis.js untuk client-side only
-const loadNeovis = async () => {
-  if (typeof window !== 'undefined') {
-    const NeoVis = await import('neovis.js');
-    return NeoVis.default;
-  }
-  return null;
-};
+import React, { useEffect, useRef, useState } from 'react';
+import { Loader, Box, Group, Button, Stack, Text } from '@mantine/core';
+import { 
+  IconArrowUp, 
+  IconArrowDown, 
+  IconArrowLeft, 
+  IconArrowRight,
+  IconZoomIn,
+  IconZoomOut,
+  IconMaximize,
+  IconRefresh
+} from '@tabler/icons-react';
+import { ExtendedNode, ExtendedEdge } from '../types';
 
 interface NeoGraphProps {
+  sessionId: string;
   relationFilters?: string[];
-  sessionId?: string;
+  onNodeClick?: (node: ExtendedNode) => void;
+  onEdgeClick?: (edge: ExtendedEdge) => void;
 }
 
-export default function NeoGraph({ relationFilters = [], sessionId }: NeoGraphProps) {
-  const visRef = useRef<HTMLDivElement>(null);
+declare global {
+  interface Window {
+    NeoVis: any;
+  }
+}
+
+export default function NeoGraph({ 
+  sessionId, 
+  relationFilters = [],
+  onNodeClick,
+  onEdgeClick
+}: NeoGraphProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const neovisRef = useRef<any>(null);
+  const neoVizRef = useRef<any>(null);
+
+  // Navigation controls
+  const handleMove = (direction: 'up' | 'down' | 'left' | 'right') => {
+    if (!neoVizRef.current || !neoVizRef.current._network) return;
+    
+    const network = neoVizRef.current._network;
+    const currentView = network.getViewPosition();
+    const moveStep = 100;
+    
+    const movements = {
+      up: { x: 0, y: -moveStep },
+      down: { x: 0, y: moveStep },
+      left: { x: -moveStep, y: 0 },
+      right: { x: moveStep, y: 0 }
+    };
+
+    network.moveTo({
+      position: {
+        x: currentView.x + movements[direction].x,
+        y: currentView.y + movements[direction].y
+      },
+      animation: true
+    });
+  };
+
+  const handleZoomIn = (type: 'in' | 'out') => {
+    if (!neoVizRef.current || !neoVizRef.current._network) return;
+    
+    const network = neoVizRef.current._network;
+    const currentScale = network.getScale();
+    const zoomStep = 0.2;
+    
+    const newScale = type === 'in' 
+      ? currentScale * (1 + zoomStep)
+      : currentScale * (1 - zoomStep);
+    
+    network.moveTo({
+      scale: newScale,
+      animation: true
+    });
+  };
+
+  const handleFitView = () => {
+    if (!neoVizRef.current || !neoVizRef.current._network) return;
+    neoVizRef.current._network.fit({
+      animation: true
+    });
+  };
+
+  const handleRefresh = () => {
+    if (neoVizRef.current) {
+      setLoading(true);
+      neoVizRef.current.render();
+    }
+  };
 
   useEffect(() => {
-    const initializeGraph = async () => {
-      if (!visRef.current) return;
+    let mounted = true;
 
+    async function loadNeoVis() {
       try {
         setLoading(true);
         setError(null);
 
-        const NeoVis = await loadNeovis();
-        if (!NeoVis) {
-          setError('Failed to load NeoVis.js');
-          return;
+        // Load Neovis.js from CDN - using version 1.5.0 for better compatibility
+        if (!window.NeoVis) {
+          const script = document.createElement('script');
+          script.src = 'https://unpkg.com/neovis.js@1.5.0';
+          script.onload = () => {
+            if (mounted) {
+              initializeNeoVis();
+            }
+          };
+          script.onerror = () => {
+            if (mounted) {
+              setError('Failed to load Neovis.js library');
+              setLoading(false);
+            }
+          };
+          document.head.appendChild(script);
+        } else {
+          initializeNeoVis();
+        }
+      } catch (err) {
+        console.error('Error loading Neovis:', err);
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load graph');
+          setLoading(false);
+        }
+      }
+    }
+
+    function initializeNeoVis() {
+      if (!containerRef.current || !window.NeoVis) return;
+
+      try {
+        // Build dynamic Cypher query with fallback for empty database
+        let cypherQuery;
+        
+        // First, try to get nodes with relationships
+        if (relationFilters.length > 0) {
+          const articleIds = relationFilters.map(id => `'${id}'`).join(',');
+          cypherQuery = `
+            MATCH (n:Article) 
+            WHERE n.sessionId = '${sessionId}' AND n.id IN [${articleIds}]
+            OPTIONAL MATCH (n)-[r]-(m:Article)
+            RETURN n, r, m
+          `;
+        } else {
+          // Get all articles for this session, with or without relationships
+          cypherQuery = `
+            MATCH (n:Article) 
+            WHERE n.sessionId = '${sessionId}'
+            OPTIONAL MATCH (n)-[r]-(m:Article)
+            RETURN n, r, m
+            LIMIT 100
+          `;
         }
 
-        // Clear previous instance
-        if (neovisRef.current) {
-          neovisRef.current.clearNetwork();
+        // Get environment variables with proper defaults
+        const neo4jUri = process.env.NEXT_PUBLIC_NEO4J_URI || "neo4j+s://b58ccce8.databases.neo4j.io";
+        const neo4jUser = process.env.NEXT_PUBLIC_NEO4J_USER || "neo4j";
+        const neo4jPassword = process.env.NEXT_PUBLIC_NEO4J_PASSWORD || "password";
+
+        // For encrypted connections (neo4j+s:// or bolt+s://), use minimal config
+        // For unencrypted connections, add basic driver config
+        const isEncrypted = neo4jUri.startsWith('neo4j+s://') || neo4jUri.startsWith('bolt+s://');
+        
+        const neo4jConfig: any = {
+          serverUrl: neo4jUri,
+          serverUser: neo4jUser,
+          serverPassword: neo4jPassword,
+          driverConfig: {
+            encrypted: "ENCRYPTION_ON",
+            trust: "TRUST_ALL_CERTIFICATES",
+            maxConnectionPoolSize: 50,
+            connectionAcquisitionTimeout: 60000,
+            // Config khusus Aura OAuth
+          auth: {
+            type: "basic",
+            credentials: {
+              username: neo4jUser,
+              password: neo4jPassword,
+            }
+          }
+          }
+        };
+        /*
+        // Only add driver config for local unencrypted connections
+        if (!isEncrypted) {
+          neo4jConfig.driverConfig = {
+            encrypted: 'ENCRYPTION_ON',
+            trust: 'TRUST_ALL_CERTIFICATES'
+          };
         }
-
-        // Build relationship filter for Cypher query
-        const relationshipTypes = [
-          'SAME_BACKGROUND',
-          'EXTENDED_METHOD', 
-          'SHARES_GOAL',
-          'FOLLOWS_FUTURE_WORK',
-          'ADDRESSES_SAME_GAP'
-        ];
-
-        // If relationFilters (articleIds) are provided, filter by those
-        const articleFilter = relationFilters.length > 0 
-          ? `WHERE a.id IN [${relationFilters.map(id => `'${id}'`).join(', ')}]`
-          : sessionId 
-            ? `WHERE a.sessionId = '${sessionId}'`
-            : '';
+          */
 
         const config = {
-          containerId: visRef.current.id,
-          neo4j: {
-            serverUrl: process.env.NEXT_PUBLIC_NEO4J_URI || 'bolt://localhost:7687',
-            serverUser: process.env.NEXT_PUBLIC_NEO4J_USER || 'neo4j',
-            serverPassword: process.env.NEXT_PUBLIC_NEO4J_PASSWORD || 'password',
-          },
-          visConfig: {
-            nodes: {
-              borderWidth: 2,
-              borderWidthSelected: 4,
-              chosen: true,
-              font: {
-                size: 14,
-                color: '#333333',
-                face: 'arial',
-                background: 'rgba(255,255,255,0.8)',
-                strokeWidth: 2,
-                strokeColor: '#ffffff'
-              },
-              scaling: {
-                min: 10,
-                max: 30,
-              },
-              shadow: {
-                enabled: true,
-                color: 'rgba(0,0,0,0.3)',
-                size: 10,
-                x: 2,
-                y: 2
-              }
-            },
-            edges: {
-              arrows: {
-                to: { enabled: true, scaleFactor: 1 }
-              },
-              color: {
-                inherit: false
-              },
-              font: {
-                size: 12,
-                color: '#333333',
-                background: 'rgba(255,255,255,0.8)',
-                strokeWidth: 1,
-                strokeColor: '#ffffff'
-              },
-              smooth: {
-                enabled: true,
-                type: 'dynamic',
-                roundness: 0.5
-              },
-              width: 2,
-              selectionWidth: 4
-            },
-            physics: {
-              enabled: true,
-              stabilization: {
-                enabled: true,
-                iterations: 1000,
-                updateInterval: 25
-              },
-              barnesHut: {
-                gravitationalConstant: -2000,
-                centralGravity: 0.1,
-                springLength: 200,
-                springConstant: 0.04,
-                damping: 0.09,
-                avoidOverlap: 0.1
-              }
-            },
-            interaction: {
-              hover: true,
-              hoverConnectedEdges: true,
-              selectConnectedEdges: false,
-              tooltipDelay: 300
-            },
-            layout: {
-              randomSeed: 2,
-              improvedLayout: true
-            }
-          },
+          containerId: containerRef.current.id,
+          neo4j: neo4jConfig,
           labels: {
             Article: {
-              label: 'title',
-              value: 'title',
-              group: 'article',
-              [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
+              label: "title",
+              value: "title",
+              group: "sessionId",
+              [window.NeoVis.NEOVIS_ADVANCED_CONFIG]: {
                 function: {
                   title: (node: any) => {
-                    return `<div style="padding: 8px; max-width: 200px;">
-                      <strong>${node.properties.title || 'Untitled'}</strong>
-                      <br/><small>Article ID: ${node.properties.id}</small>
-                      ${node.properties.att_background ? `<br/><br/><strong>Background:</strong><br/>${node.properties.att_background.substring(0, 100)}...` : ''}
-                    </div>`;
-                  },
-                  color: (node: any) => {
-                    // Color based on article attributes
-                    if (node.properties.att_method) return '#4CAF50'; // Green for method
-                    if (node.properties.att_background) return '#2196F3'; // Blue for background
-                    if (node.properties.att_goal) return '#FF9800'; // Orange for goal
-                    if (node.properties.att_future) return '#9C27B0'; // Purple for future
-                    if (node.properties.att_gaps) return '#F44336'; // Red for gaps
-                    return '#757575'; // Gray default
-                  },
-                  size: (node: any) => {
-                    // Size based on content length or importance
-                    const contentLength = (node.properties.title || '').length;
-                    return Math.max(15, Math.min(40, contentLength / 2));
+                    return `
+                      <div style="padding: 10px; max-width: 300px;">
+                        <strong>${node.properties.title || 'Untitled'}</strong><br/>
+                        <strong>Background:</strong> ${node.properties.att_background || 'N/A'}<br/>
+                        <strong>Method:</strong> ${node.properties.att_method || 'N/A'}<br/>
+                        <strong>Goal:</strong> ${node.properties.att_goal || 'N/A'}<br/>
+                        <strong>Future:</strong> ${node.properties.att_future || 'N/A'}<br/>
+                        <strong>Gaps:</strong> ${node.properties.att_gaps || 'N/A'}
+                      </div>
+                    `;
                   }
                 }
               }
@@ -174,163 +223,346 @@ export default function NeoGraph({ relationFilters = [], sessionId }: NeoGraphPr
           },
           relationships: {
             SAME_BACKGROUND: {
-              label: 'Latar Belakang',
-              value: 'weight',
-              [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
-                function: {
-                  color: () => '#2196F3', // Blue
-                  title: () => 'Memiliki latar belakang yang sama'
-                }
-              }
+              value: "weight",
+              label: "SAME_BACKGROUND",
+              color: "#2563eb"
             },
             EXTENDED_METHOD: {
-              label: 'Metodologi',
-              value: 'weight', 
-              [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
-                function: {
-                  color: () => '#4CAF50', // Green
-                  title: () => 'Menggunakan metodologi yang diperluas'
-                }
-              }
+              value: "weight", 
+              label: "EXTENDED_METHOD",
+              color: "#16a34a"
             },
             SHARES_GOAL: {
-              label: 'Tujuan',
-              value: 'weight',
-              [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
-                function: {
-                  color: () => '#FF9800', // Orange
-                  title: () => 'Memiliki tujuan yang sama'
-                }
-              }
+              value: "weight",
+              label: "SHARES_GOAL",
+              color: "#ea580c"
             },
             FOLLOWS_FUTURE_WORK: {
-              label: 'Arahan Masa Depan',
-              value: 'weight',
-              [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
-                function: {
-                  color: () => '#9C27B0', // Purple
-                  title: () => 'Mengikuti arahan penelitian masa depan'
-                }
-              }
+              value: "weight",
+              label: "FOLLOWS_FUTURE_WORK",
+              color: "#7c3aed"
             },
             ADDRESSES_SAME_GAP: {
-              label: 'Gap Penelitian',
-              value: 'weight',
-              [NeoVis.NEOVIS_ADVANCED_CONFIG]: {
-                function: {
-                  color: () => '#F44336', // Red
-                  title: () => 'Mengatasi gap penelitian yang sama'
-                }
-              }
+              value: "weight",
+              label: "ADDRESSES_SAME_GAP",
+              color: "#dc2626"
+            },
+            RELATED: {
+              value: "weight",
+              label: "RELATED",
+              color: "#6b7280"
             }
           },
-          initialCypher: `
-            MATCH (a:Article)
-            ${articleFilter}
-            OPTIONAL MATCH (a)-[r]->(b:Article)
-            RETURN a, r, b
-            LIMIT 100
-          `
+          initialCypher: cypherQuery,
+          visConfig: {
+            nodes: {
+              shape: 'circle',
+              size: 20,
+              font: {
+                size: 14,
+                color: '#333333'
+              },
+              borderWidth: 2,
+              shadow: true,
+              margin: {
+                top: 10,
+                bottom: 10,
+              }
+            },
+            edges: {
+              arrows: {
+                to: { enabled: true, scaleFactor: 1, type: 'arrow' }
+              },
+              color: { inherit: 'from' },
+              width: 2,
+              shadow: true,
+              smooth: { 
+                type: 'dynamic',
+                forceDirection: true,
+                roundness: 0.5
+              }
+            },
+            physics: {
+              enabled: true,
+              solver: 'forceAtlas2Based',
+              forceAtlas2Based: {
+                gravitationalConstant: -50,
+                springLength: 200,
+                springConstant: 0.08,
+                damping: 0.4,
+                avoidOverlap: 1
+              },
+              stabilization: { 
+                iterations: 1000,
+                updateInterval: 50,
+                onlyDynamicEdges: false,
+                fit: true
+              }
+            },
+            interaction: {
+              hover: true,
+              tooltipDelay: 200,
+              hideEdgesOnDrag: false,
+              hideNodesOnDrag: false,
+              navigationButtons: true,
+              dragNodes: true,
+              dragView: true,
+              zoomView: true,
+              multiselect: true
+            },
+            layout: {
+              improvedLayout: true
+            }
+          }
         };
 
+        // Clean up previous instance
+        if (neoVizRef.current) {
+          neoVizRef.current = null;
+        }
+
         // Create new NeoVis instance
-        neovisRef.current = new NeoVis(config);
-
-        // Event listeners
-        neovisRef.current.registerOnEvent('completed', () => {
-          setLoading(false);
-          console.log('Neo4j graph loaded successfully');
+        neoVizRef.current = new window.NeoVis.default(config);
+        
+        // Add event listeners
+        neoVizRef.current.registerOnEvent("completed", () => {
+          console.log("NeoVis render completed");
+          if (mounted) {
+            setLoading(false);
+            if (neoVizRef.current && neoVizRef.current._network) {
+              const nodes = neoVizRef.current._data?.nodes;
+              const edges = neoVizRef.current._data?.edges;
+              
+              // Check if we have any data
+              if (!nodes || nodes.length === 0) {
+                setError(`No articles found for session: ${sessionId}. Please make sure your database contains Article nodes with the correct sessionId.`);
+                return;
+              }
+              
+              console.log(`Found ${nodes.length} nodes and ${edges?.length || 0} edges`);
+              
+              neoVizRef.current._network.setOptions({ physics: false });
+              neoVizRef.current._network.fit({ animation: true });
+              
+              // Add click event listeners
+              neoVizRef.current._network.on("click", (event: any) => {
+                if (event.nodes.length > 0 && onNodeClick) {
+                  const nodeId = event.nodes[0];
+                  const nodeData = neoVizRef.current._data.nodes.get(nodeId);
+                  
+                  const extendedNode: ExtendedNode = {
+                    id: nodeData.id || nodeId,
+                    label: nodeData.label || nodeData.title || 'Unknown',
+                    title: nodeData.title || nodeData.label || 'Unknown',
+                  };
+                  
+                  onNodeClick(extendedNode);
+                }
+                
+                if (event.edges.length > 0 && onEdgeClick) {
+                  const edgeId = event.edges[0];
+                  const edgeData = neoVizRef.current._data.edges.get(edgeId);
+                  
+                  const extendedEdge: ExtendedEdge = {
+                    id: edgeData.id || edgeId,
+                    from: edgeData.from,
+                    to: edgeData.to,
+                    label: edgeData.label || '',
+                    relation: edgeData.type || 'unknown',
+                  };
+                  
+                  onEdgeClick(extendedEdge);
+                }
+              });
+            }
+          }
         });
 
-        neovisRef.current.registerOnEvent('error', (error: any) => {
-          console.error('NeoVis error:', error);
-          setError('Failed to load graph data');
-          setLoading(false);
+        neoVizRef.current.registerOnEvent("error", (error: any) => {
+          console.error("NeoVis error:", error);
+          if (mounted) {
+            setError(`Neo4j connection error: ${error.message || 'Unknown error'}`);
+            setLoading(false);
+          }
         });
 
-        // Render the graph
-        neovisRef.current.render();
+        // Render graph
+        neoVizRef.current.render();
 
       } catch (err) {
-        console.error('Error initializing NeoGraph:', err);
-        setError('Failed to initialize graph');
-        setLoading(false);
-      }
-    };
-
-    initializeGraph();
-
-    // Cleanup on unmount
-    return () => {
-      if (neovisRef.current) {
-        try {
-          neovisRef.current.clearNetwork();
-        } catch (err) {
-          console.error('Error clearing network:', err);
+        console.error('Error initializing NeoVis:', err);
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Failed to initialize graph');
+          setLoading(false);
         }
       }
-    };
-  }, [relationFilters, sessionId]);
+    }
 
-  // Generate unique ID for the container
-  const containerId = `neovis-${Math.random().toString(36).substr(2, 9)}`;
+    if (sessionId) {
+      loadNeoVis();
+    }
+
+    return () => {
+      mounted = false;
+      if (neoVizRef.current) {
+        neoVizRef.current = null;
+      }
+    };
+  }, [sessionId, relationFilters, onNodeClick, onEdgeClick]);
 
   if (error) {
     return (
-      <Box 
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center' 
-        }}
-      >
-        <Stack align="center" gap="sm">
-          <Text color="red" size="lg" fw={500}>
-            Error Loading Graph
+      <Box style={{ position: 'relative', width: '100%', height: '500px' }}>
+        <div style={{ 
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          textAlign: 'center',
+          padding: '2rem'
+        }}>
+          <Text size="lg" color="red" mb="md">Error: {error}</Text>
+          <Text size="sm" color="dimmed" mb="lg">
+            Database troubleshooting tips:
           </Text>
-          <Text size="sm" c="dimmed">
-            {error}
-          </Text>
-        </Stack>
+          <Stack gap="xs" align="center">
+            <Text size="xs" color="dimmed">• Check if Neo4j is running and accessible</Text>
+            <Text size="xs" color="dimmed">• Verify database contains Article nodes</Text>
+            <Text size="xs" color="dimmed">• Check if sessionId matches your data</Text>
+            <Text size="xs" color="dimmed">• For local Neo4j: bolt://localhost:7687</Text>
+            <Text size="xs" color="dimmed">• For Neo4j Aura: neo4j+s://xxx.databases.neo4j.io</Text>
+          </Stack>
+          <Button 
+            variant="light" 
+            color="blue" 
+            mt="lg" 
+            onClick={handleRefresh}
+            leftSection={<IconRefresh size={16} />}
+          >
+            Retry Connection
+          </Button>
+        </div>
       </Box>
     );
   }
 
   return (
-    <Box style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <Box style={{ position: 'relative', width: '100%', height: '500px' }}>
       {loading && (
-        <Box
+        <Loader
+          size="xl"
+          variant="dots"
+          color="blue"
           style={{
             position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-            zIndex: 10
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 1
           }}
-        >
-          <Stack align="center" gap="sm">
-            <Loader size="lg" />
-            <Text size="sm" c="dimmed">
-              Loading Neo4j Graph...
-            </Text>
-          </Stack>
-        </Box>
+        />
       )}
-      
-      <div
-        id={containerId}
-        ref={visRef}
-        style={{
-          width: '100%',
-          height: '100%',
-          border: '1px solid #e0e0e0',
+
+      {/* Navigation Controls */}
+      <Group 
+        style={{ 
+          position: 'absolute', 
+          left: 20, 
+          bottom: 20,
+          zIndex: 1 
+        }}
+        gap="xs"
+      >
+        <Stack gap="xs" align="center">
+          <Button 
+            size="sm" 
+            variant="light"
+            onClick={() => handleMove('up')}
+            disabled={loading}
+          >
+            <IconArrowUp size={16} />
+          </Button>
+
+          <Group gap="xs">
+            <Button 
+              size="sm" 
+              variant="light"
+              onClick={() => handleMove('left')}
+              disabled={loading}
+            >
+              <IconArrowLeft size={16} />
+            </Button>
+            <Button 
+              size="sm" 
+              variant="light"
+              onClick={() => handleMove('down')}
+              disabled={loading}
+            >
+              <IconArrowDown size={16} />
+            </Button>
+            <Button 
+              size="sm" 
+              variant="light"
+              onClick={() => handleMove('right')}
+              disabled={loading}
+            >
+              <IconArrowRight size={16} />
+            </Button>
+          </Group>
+        </Stack>
+      </Group>
+
+      {/* Right Bottom Controls */}
+      <Group 
+        style={{ 
+          position: 'absolute', 
+          right: 20, 
+          bottom: 20,
+          zIndex: 1
+        }}
+        gap="xs"
+      >
+        <Button 
+          size="sm" 
+          variant="light"
+          onClick={() => handleZoomIn('in')}
+          disabled={loading}
+        >
+          <IconZoomIn size={16} />
+        </Button>
+        <Button 
+          size="sm" 
+          variant="light"
+          onClick={() => handleZoomIn('out')}
+          disabled={loading}
+        >
+          <IconZoomOut size={16} />
+        </Button>
+        <Button 
+          size="sm" 
+          variant="light"
+          onClick={handleFitView}
+          disabled={loading}
+        >
+          <IconMaximize size={16} />
+        </Button>
+        <Button 
+          size="sm" 
+          variant="light"
+          onClick={handleRefresh}
+          disabled={loading}
+        >
+          <IconRefresh size={16} />
+        </Button>
+      </Group>
+
+      <div 
+        id={`neo4j-viz-${sessionId}`}
+        ref={containerRef}
+        style={{ 
+          width: '100%', 
+          height: '100%', 
+          border: '1px solid black',
           borderRadius: '8px'
         }}
       />
