@@ -9,100 +9,133 @@ const driver = neo4j.driver(
 
 export async function GET(req: NextRequest) {
     const session = driver.session();
-    const { searchParams } = new URL(req.url);
-    const sessionId = searchParams.get('sessionId');
-    const articleIds = searchParams.get('articleIds');
-
+    
     try {
+        const { searchParams } = new URL(req.url);
+        const sessionId = searchParams.get('sessionId');
+        
         if (!sessionId) {
             return NextResponse.json({ error: 'Missing sessionId' }, { status: 400 });
         }
 
-        let cypher = '';
-        let params: any = { sessionId };
+        // Query untuk mendapatkan nodes dan relationships
+        const cypher = `
+            MATCH (n:Article)
+            WHERE n.sessionId = $sessionId
+            OPTIONAL MATCH (n)-[r]-(m:Article)
+            WHERE m.sessionId = $sessionId
+            RETURN n, r, m, r.explanation as explanation, type(r) as relationType
+        `;
 
-        if (articleIds) {
-            // Filter by specific article IDs
-            const ids = articleIds.split(',').map(id => id.trim());
-            cypher = `
-                MATCH (a:Article)
-                WHERE a.sessionId = $sessionId AND a.id IN $articleIds
-                OPTIONAL MATCH (a)-[r]->(b:Article)
-                WHERE b.sessionId = $sessionId AND b.id IN $articleIds
-                RETURN a, r, b
-            `;
-            params.articleIds = ids;
-        } else {
-            // Get all articles for the session
-            cypher = `
-                MATCH (a:Article)
-                WHERE a.sessionId = $sessionId
-                OPTIONAL MATCH (a)-[r]->(b:Article)
-                WHERE b.sessionId = $sessionId
-                RETURN a, r, b
-            `;
-        }
-
-        const result = await session.run(cypher, params);
+        const result = await session.run(cypher, { sessionId });
         
         const nodes = new Map();
-        const edges: any = [];
+        const edges: any[] = [];
 
         result.records.forEach(record => {
-            const nodeA = record.get('a');
+            const node = record.get('n');
             const relationship = record.get('r');
-            const nodeB = record.get('b');
+            const relatedNode = record.get('m');
 
-            // Add node A
-            if (nodeA && !nodes.has(nodeA.properties.id)) {
-                nodes.set(nodeA.properties.id, {
-                    id: nodeA.properties.id,
-                    title: nodeA.properties.title,
-                    att_background: nodeA.properties.att_background,
-                    att_method: nodeA.properties.att_method,
-                    att_goal: nodeA.properties.att_goal,
-                    att_future: nodeA.properties.att_future,
-                    att_gaps: nodeA.properties.att_gaps,
-                    articleId: nodeA.properties.articleId,
-                    sessionId: nodeA.properties.sessionId
-                });
+            // Add source node
+            if (node) {
+                const nodeId = node.properties.id;
+                if (!nodes.has(nodeId)) {
+                    nodes.set(nodeId, {
+                        id: nodeId,
+                        label: node.properties.title || 'Untitled',
+                        title: node.properties.title || 'Untitled',
+                        att_background: node.properties.att_background || '',
+                        att_method: node.properties.att_method || '',
+                        att_goal: node.properties.att_goal || '',
+                        att_future: node.properties.att_future || '',
+                        att_gaps: node.properties.att_gaps || '',
+                        att_url: node.properties.att_url || '',
+                        articleId: node.properties.articleId,
+                        sessionId: node.properties.sessionId,
+                    });
+                }
             }
 
-            // Add node B if exists
-            if (nodeB && !nodes.has(nodeB.properties.id)) {
-                nodes.set(nodeB.properties.id, {
-                    id: nodeB.properties.id,
-                    title: nodeB.properties.title,
-                    att_background: nodeB.properties.att_background,
-                    att_method: nodeB.properties.att_method,
-                    att_goal: nodeB.properties.att_goal,
-                    att_future: nodeB.properties.att_future,
-                    att_gaps: nodeB.properties.att_gaps,
-                    articleId: nodeB.properties.articleId,
-                    sessionId: nodeB.properties.sessionId
-                });
-            }
+            // Add related node and relationship
+            if (relationship && relatedNode) {
+                const relatedNodeId = relatedNode.properties.id;
+                
+                if (!nodes.has(relatedNodeId)) {
+                    nodes.set(relatedNodeId, {
+                        id: relatedNodeId,
+                        label: relatedNode.properties.title || 'Untitled',
+                        title: relatedNode.properties.title || 'Untitled',
+                        att_background: relatedNode.properties.att_background || '',
+                        att_method: relatedNode.properties.att_method || '',
+                        att_goal: relatedNode.properties.att_goal || '',
+                        att_future: relatedNode.properties.att_future || '',
+                        att_gaps: relatedNode.properties.att_gaps || '',
+                        att_url: relatedNode.properties.att_url || '',
+                        articleId: relatedNode.properties.articleId,
+                        sessionId: relatedNode.properties.sessionId,
+                    });
+                }
 
-            // Add relationship if exists
-            if (relationship && nodeA && nodeB) {
                 edges.push({
-                    id: `${nodeA.properties.id}-${nodeB.properties.id}-${relationship.type}`,
-                    from: nodeA.properties.id,
-                    to: nodeB.properties.id,
-                    type: relationship.type,
-                    weight: relationship.properties.weight || 1.0
+                    from: node.properties.id,
+                    to: relatedNode.properties.id,
+                    label: record.get('relationType'),
+                    description: relationship.properties.description || '',
+                    explanation: record.get('explanation'),
+                    weight: relationship.properties.weight || 1.0,
+                    type: record.get('relationType').toLowerCase(),
+                    relation: record.get('relationType').toLowerCase(),
                 });
             }
         });
 
-        return NextResponse.json({
+        const graphData = {
             nodes: Array.from(nodes.values()),
-            edges: edges
-        });
+            edges: edges,
+        };
+
+        return NextResponse.json(graphData);
 
     } catch (error) {
         console.error('Neo4j query error:', error);
-        return NextResponse.json({ error: 'Failed to query Neo4j' }, { status: 500 });
+        return NextResponse.json({ 
+            error: 'Failed to query Neo4j',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
+    } finally {
+        await session.close();
+    }
+}
+
+export async function POST(req: NextRequest) {
+    const session = driver.session();
+    
+    try {
+        const { query, params } = await req.json();
+        
+        if (!query) {
+            return NextResponse.json({ error: 'Missing query' }, { status: 400 });
+        }
+
+        const result = await session.run(query, params || {});
+        
+        const records = result.records.map(record => {
+            const obj: any = {};
+            record.keys.forEach((key, index) => {
+                obj[key] = record.get(index);
+            });
+            return obj;
+        });
+
+        return NextResponse.json({ records });
+
+    } catch (error) {
+        console.error('Neo4j custom query error:', error);
+        return NextResponse.json({ 
+            error: 'Failed to execute custom query',
+            details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
     } finally {
         await session.close();
     }

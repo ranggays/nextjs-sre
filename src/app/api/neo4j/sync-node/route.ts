@@ -25,6 +25,7 @@ export async function POST (req: NextRequest){
                 a.att_goal = $att_goal,
                 a.att_future = $att_future,
                 a.att_gaps = $att_gaps,
+                a.att_url = $att_url,
                 a.articleId = $articleId,
                 a.sessionId = $sessionId
         `;
@@ -37,6 +38,7 @@ export async function POST (req: NextRequest){
             att_goal: nodeData.att_goal || '',
             att_future: nodeData.att_future || '',
             att_gaps: nodeData.att_gaps || '',
+            att_url: nodeData.att_url || '',
             articleId: articleId,
             sessionId: sessionId,
         };
