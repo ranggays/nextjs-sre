@@ -156,45 +156,7 @@ export default function ProjectDashboard() {
   useEffect(() => {
 
     fetchProjects();
-    /*
-    const mockProjects: BrainstormingProject[] = [
-      {
-        id: '1',
-        title: 'Machine Learning Research',
-        description: 'Exploring deep learning approaches for computer vision',
-        coverColor: '#4c6ef5',
-        articleCount: 8,
-        chatCount: 12,
-        lastActivity: '2 jam lalu',
-        createdAt: '2024-01-15',
-      },
-      {
-        id: '2',
-        title: 'Natural Language Processing',
-        description: 'Sentiment analysis and text classification studies',
-        coverColor: '#51cf66',
-        articleCount: 5,
-        chatCount: 7,
-        lastActivity: '1 hari lalu',
-        createdAt: '2024-01-10',
-      },
-      {
-        id: '3',
-        title: 'Computer Vision Applications',
-        description: 'Real-time object detection and tracking',
-        coverColor: '#ff6b6b',
-        articleCount: 12,
-        chatCount: 18,
-        lastActivity: '3 hari lalu',
-        createdAt: '2024-01-05',
-      },
-    ];
 
-    setTimeout(() => {
-      setProjects(mockProjects);
-      setLoading(false);
-    }, 1000);
-    */
   }, []);
 
   useEffect(() => {
@@ -204,11 +166,13 @@ export default function ProjectDashboard() {
       eventBus.on('sessionCreated', handleUpdate);
       eventBus.on('sessionDeleted', handleUpdate);
       eventBus.on('sessionUpdated', handleUpdate);
+      eventBus.on('articleDeleted', handleUpdate);
   
       return () => {
         eventBus.off('sessionCreated', handleUpdate);
         eventBus.off('sessionDeleted', handleUpdate);
         eventBus.off('sessionUpdated', handleUpdate);
+        eventBus.off('articleDeleted', handleUpdate);
       }
     }, []);
 
@@ -248,22 +212,6 @@ export default function ProjectDashboard() {
     } catch (error) {
       console.error('Error', error);
     }
-    /*
-    const project: BrainstormingProject = {
-      id: Date.now().toString(),
-      title: newProject.title,
-      description: newProject.description,
-      coverColor: newProject.coverColor,
-      articleCount: 0,
-      chatCount: 0,
-      lastActivity: 'Baru dibuat',
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-
-    setProjects(prev => [project, ...prev]);
-    setNewProject({ title: '', description: '', coverColor: '#4c6ef5' });
-    setCreateModalOpen(false);
-    */
   };
 
   const handleDeleteProject = async (projectId: string) => {
@@ -326,6 +274,13 @@ export default function ProjectDashboard() {
     };
     setProjects(prev => [duplicated, ...prev]);
   };
+
+  const handleDeleteArticle = async (articleId: string) => {
+    await fetch(`/api/articles/${articleId}`, {
+      method: 'DELETE'
+    });
+    eventBus.emit('articleDeleted');
+  }
 
   const ProjectCard = ({ project }: { project: BrainstormingProject }) => (
     <Card
